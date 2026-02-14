@@ -72,15 +72,56 @@ def delete_grade(request, grade_id: int):
     return 204, None
 
 
+@router.get(
+    "/grades/{grade_id}",
+    response={200: GradeOut, 403: ErrorOut, 404: ErrorOut},
+)
+def get_grade(request, grade_id: int):
+    """Get a grade by ID. Requires membership in the grade's org."""
+    grade = get_object_or_404(Grade, id=grade_id)
+    allowed, msg = check_role(request.auth, grade.organization_id, min_role=OrgRole.MEMBER)
+    if not allowed:
+        return 403, {"detail": msg}
+    return 200, grade
+
+
 @router.post(
     "/grades/{grade_id}/citizens",
     response={200: GradeOut, 403: ErrorOut, 404: ErrorOut},
 )
 def assign_citizens(request, grade_id: int, payload: GradeCitizenAssignIn):
-    """Assign citizens to a grade. Requires admin role."""
+    """Assign citizens to a grade (replaces entire set). Requires admin role."""
     grade = get_object_or_404(Grade, id=grade_id)
     allowed, msg = check_role(request.auth, grade.organization_id, min_role=OrgRole.ADMIN)
     if not allowed:
         return 403, {"detail": msg}
     grade.citizens.set(payload.citizen_ids)
+    return 200, grade
+
+
+@router.post(
+    "/grades/{grade_id}/citizens/add",
+    response={200: GradeOut, 403: ErrorOut, 404: ErrorOut},
+)
+def add_citizens_to_grade(request, grade_id: int, payload: GradeCitizenAssignIn):
+    """Add citizens to a grade without removing existing ones. Requires admin role."""
+    grade = get_object_or_404(Grade, id=grade_id)
+    allowed, msg = check_role(request.auth, grade.organization_id, min_role=OrgRole.ADMIN)
+    if not allowed:
+        return 403, {"detail": msg}
+    grade.citizens.add(*payload.citizen_ids)
+    return 200, grade
+
+
+@router.post(
+    "/grades/{grade_id}/citizens/remove",
+    response={200: GradeOut, 403: ErrorOut, 404: ErrorOut},
+)
+def remove_citizens_from_grade(request, grade_id: int, payload: GradeCitizenAssignIn):
+    """Remove citizens from a grade. Requires admin role."""
+    grade = get_object_or_404(Grade, id=grade_id)
+    allowed, msg = check_role(request.auth, grade.organization_id, min_role=OrgRole.ADMIN)
+    if not allowed:
+        return 403, {"detail": msg}
+    grade.citizens.remove(*payload.citizen_ids)
     return 200, grade

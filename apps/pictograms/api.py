@@ -1,7 +1,8 @@
 """Pictogram API endpoints."""
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from ninja import Router, Schema
+from ninja import File, Form, Router, Schema
+from ninja.files import UploadedFile
 from ninja.pagination import LimitOffsetPagination, paginate
 
 from apps.organizations.models import OrgRole
@@ -26,6 +27,13 @@ class PictogramOut(Schema):
     name: str
     image_url: str
     organization_id: int | None
+
+    @staticmethod
+    def resolve_image_url(obj):
+        """Return image file URL if uploaded, otherwise the stored image_url."""
+        if obj.image:
+            return obj.image.url
+        return obj.image_url
 
 
 @router.post("", response={201: PictogramOut, 403: ErrorOut})
@@ -70,3 +78,23 @@ def delete_pictogram(request, pictogram_id: int):
             return 403, {"detail": msg}
     pictogram.delete()
     return 204, None
+
+
+@router.post("/upload", response={201: PictogramOut, 403: ErrorOut})
+def upload_pictogram(
+    request,
+    image: File[UploadedFile],
+    name: Form[str],
+    organization_id: Form[int | None] = None,
+):
+    """Upload a pictogram with an image file. Requires admin role if org-scoped."""
+    if organization_id:
+        allowed, msg = check_role(request.auth, organization_id, min_role=OrgRole.ADMIN)
+        if not allowed:
+            return 403, {"detail": msg}
+    pictogram = Pictogram.objects.create(
+        name=name,
+        image=image,
+        organization_id=organization_id,
+    )
+    return 201, pictogram

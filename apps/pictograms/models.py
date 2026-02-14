@@ -10,7 +10,12 @@ class Pictogram(models.Model):
     """A visual aid image used across GIRAF apps."""
 
     name = models.CharField(max_length=255)
-    image_url = models.URLField(max_length=500)
+    image_url = models.CharField(max_length=500, blank=True, default="")
+    image = models.ImageField(
+        upload_to="pictograms/%Y/%m/%d/",
+        null=True,
+        blank=True,
+    )
     organization = models.ForeignKey(
         "organizations.Organization",
         on_delete=models.CASCADE,

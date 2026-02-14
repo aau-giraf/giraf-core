@@ -5,7 +5,7 @@ from ninja.errors import HttpError
 from ninja.pagination import LimitOffsetPagination, paginate
 
 from apps.organizations.models import Organization
-from apps.organizations.schemas import MemberOut, MemberRoleUpdateIn, OrgCreateIn, OrgOut
+from apps.organizations.schemas import MemberOut, MemberRoleUpdateIn, OrgCreateIn, OrgOut, OrgUpdateIn
 from apps.organizations.services import OrganizationService
 
 router = Router(tags=["organizations"])
@@ -37,6 +37,35 @@ def get_organization(request, org_id: int):
     if not membership:
         return 403, {"detail": "You are not a member of this organization."}
     return 200, org
+
+
+@router.patch(
+    "/{org_id}",
+    response={200: OrgOut, 403: ErrorOut, 404: ErrorOut},
+)
+def update_organization(request, org_id: int, payload: OrgUpdateIn):
+    """Update an organization. Only owners can do this."""
+    org = get_object_or_404(Organization, id=org_id)
+    membership = OrganizationService.get_membership(request.auth, org_id)
+    if not membership or not membership.is_owner:
+        return 403, {"detail": "Only organization owners can update the organization."}
+    org.name = payload.name
+    org.save()
+    return 200, org
+
+
+@router.delete(
+    "/{org_id}",
+    response={204: None, 403: ErrorOut, 404: ErrorOut},
+)
+def delete_organization(request, org_id: int):
+    """Delete an organization. Only owners can do this."""
+    org = get_object_or_404(Organization, id=org_id)
+    membership = OrganizationService.get_membership(request.auth, org_id)
+    if not membership or not membership.is_owner:
+        return 403, {"detail": "Only organization owners can delete the organization."}
+    org.delete()
+    return 204, None
 
 
 @router.get("/{org_id}/members", response=list[MemberOut])
