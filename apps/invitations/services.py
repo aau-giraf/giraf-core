@@ -1,27 +1,33 @@
 """Invitation business logic."""
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 from apps.invitations.models import Invitation, InvitationStatus
 from apps.organizations.models import Membership, OrgRole
+from core.exceptions import AlreadyMemberError, DuplicateInvitationError, ReceiverNotFoundError
 
 User = get_user_model()
 
 
 class InvitationService:
     @staticmethod
-    def send(*, organization, sender, receiver_email: str) -> Invitation | str:
-        """Create an invitation. Returns Invitation or error string."""
+    def send(*, organization, sender, receiver_email: str) -> Invitation:
+        """Create an invitation.
+
+        Raises:
+            ReceiverNotFoundError: No user with that email.
+            AlreadyMemberError: User is already a member of the org.
+            DuplicateInvitationError: A pending invitation already exists.
+        """
         try:
             receiver = User.objects.get(email=receiver_email)
         except User.DoesNotExist:
-            return "no_user"
+            raise ReceiverNotFoundError("No user with that email.")
 
-        # Cannot invite someone already in the org
         if Membership.objects.filter(
             user=receiver, organization=organization
         ).exists():
-            return "already_member"
+            raise AlreadyMemberError("User is already a member.")
 
         try:
             inv = Invitation.objects.create(
@@ -30,7 +36,7 @@ class InvitationService:
                 receiver=receiver,
             )
         except IntegrityError:
-            return "duplicate"
+            raise DuplicateInvitationError("Pending invitation already exists.")
 
         return inv
 
@@ -48,6 +54,7 @@ class InvitationService:
         ).select_related("organization", "sender", "receiver")
 
     @staticmethod
+    @transaction.atomic
     def accept(invitation: Invitation) -> None:
         """Accept invitation: create membership, update status."""
         Membership.objects.get_or_create(

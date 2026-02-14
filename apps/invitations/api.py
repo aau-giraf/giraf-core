@@ -1,9 +1,9 @@
 """Invitation API endpoints.
 
 Two routers:
-- org_router: org-scoped endpoints (send, list, delete) → mounted at /organizations
+- org_router: org-scoped endpoints (send, list, delete) -> mounted at /organizations
 - receiver_router: receiver-scoped endpoints (list received, accept, reject)
-                   → mounted at /invitations
+                   -> mounted at /invitations
 """
 from django.shortcuts import get_object_or_404
 from ninja import Router
@@ -12,10 +12,12 @@ from ninja.pagination import LimitOffsetPagination, paginate
 from ninja_jwt.authentication import JWTAuth
 
 from apps.invitations.models import Invitation
-from apps.invitations.schemas import ErrorOut, InvitationCreateIn, InvitationOut
+from apps.invitations.schemas import InvitationCreateIn, InvitationOut
 from apps.invitations.services import InvitationService
 from apps.organizations.models import Organization
+from core.exceptions import AlreadyMemberError, DuplicateInvitationError, ReceiverNotFoundError
 from core.permissions import check_role
+from core.schemas import ErrorOut
 
 org_router = Router(tags=["Invitations"])
 receiver_router = Router(tags=["Invitations"])
@@ -28,29 +30,26 @@ receiver_router = Router(tags=["Invitations"])
 
 @org_router.post(
     "/{org_id}/invitations",
-    response={201: InvitationOut, 403: ErrorOut, 404: ErrorOut, 409: ErrorOut},
+    response={201: InvitationOut, 400: ErrorOut, 403: ErrorOut, 404: ErrorOut, 409: ErrorOut},
     auth=JWTAuth(),
 )
 def send_invitation(request, org_id: int, payload: InvitationCreateIn):
     ok, msg = check_role(request.auth, org_id, min_role="admin")
     if not ok:
-        return 403, {"detail": msg}
+        raise HttpError(403, msg)
 
     org = get_object_or_404(Organization, id=org_id)
-    result = InvitationService.send(
-        organization=org,
-        sender=request.auth,
-        receiver_email=payload.receiver_email,
-    )
+    try:
+        result = InvitationService.send(
+            organization=org,
+            sender=request.auth,
+            receiver_email=payload.receiver_email,
+        )
+    except (ReceiverNotFoundError, AlreadyMemberError):
+        raise HttpError(400, "Cannot send invitation.")
+    except DuplicateInvitationError:
+        raise HttpError(409, "Pending invitation already exists.")
 
-    if result == "no_user":
-        return 404, {"detail": "No user with that email."}
-    if result == "already_member":
-        return 409, {"detail": "User is already a member."}
-    if result == "duplicate":
-        return 409, {"detail": "Pending invitation already exists."}
-
-    # Reload with relations for schema
     inv = Invitation.objects.select_related(
         "organization", "sender", "receiver"
     ).get(id=result.id)
@@ -72,7 +71,6 @@ def list_org_invitations(request, org_id: int):
     ok, msg = check_role(request.auth, org_id, min_role="admin")
     if not ok:
         raise HttpError(403, msg)
-
     return InvitationService.list_for_org(org_id)
 
 
@@ -89,8 +87,7 @@ def list_org_invitations(request, org_id: int):
 def delete_invitation(request, org_id: int, invitation_id: int):
     ok, msg = check_role(request.auth, org_id, min_role="admin")
     if not ok:
-        return 403, {"detail": msg}
-
+        raise HttpError(403, msg)
     inv = get_object_or_404(Invitation, id=invitation_id, organization_id=org_id)
     InvitationService.delete(inv)
     return 204, None
@@ -127,8 +124,7 @@ def accept_invitation(request, invitation_id: int):
         id=invitation_id,
     )
     if inv.receiver_id != request.auth.id:
-        return 403, {"detail": "Only the receiver can respond."}
-
+        raise HttpError(403, "Only the receiver can respond.")
     InvitationService.accept(inv)
     inv.refresh_from_db()
     return inv
@@ -150,8 +146,7 @@ def reject_invitation(request, invitation_id: int):
         id=invitation_id,
     )
     if inv.receiver_id != request.auth.id:
-        return 403, {"detail": "Only the receiver can respond."}
-
+        raise HttpError(403, "Only the receiver can respond.")
     InvitationService.reject(inv)
     inv.refresh_from_db()
     return inv

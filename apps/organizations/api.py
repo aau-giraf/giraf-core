@@ -1,18 +1,15 @@
 """Organization API endpoints."""
 from django.shortcuts import get_object_or_404
-from ninja import Router, Schema
+from ninja import Router
 from ninja.errors import HttpError
 from ninja.pagination import LimitOffsetPagination, paginate
 
 from apps.organizations.models import Organization
 from apps.organizations.schemas import MemberOut, MemberRoleUpdateIn, OrgCreateIn, OrgOut, OrgUpdateIn
 from apps.organizations.services import OrganizationService
+from core.schemas import ErrorOut
 
 router = Router(tags=["organizations"])
-
-
-class ErrorOut(Schema):
-    detail: str
 
 
 @router.post("", response={201: OrgOut})
@@ -35,7 +32,7 @@ def get_organization(request, org_id: int):
     org = get_object_or_404(Organization, id=org_id)
     membership = OrganizationService.get_membership(request.auth, org_id)
     if not membership:
-        return 403, {"detail": "You are not a member of this organization."}
+        raise HttpError(403, "You are not a member of this organization.")
     return 200, org
 
 
@@ -48,7 +45,7 @@ def update_organization(request, org_id: int, payload: OrgUpdateIn):
     org = get_object_or_404(Organization, id=org_id)
     membership = OrganizationService.get_membership(request.auth, org_id)
     if not membership or not membership.is_owner:
-        return 403, {"detail": "Only organization owners can update the organization."}
+        raise HttpError(403, "Only organization owners can update the organization.")
     org.name = payload.name
     org.save()
     return 200, org
@@ -63,7 +60,7 @@ def delete_organization(request, org_id: int):
     org = get_object_or_404(Organization, id=org_id)
     membership = OrganizationService.get_membership(request.auth, org_id)
     if not membership or not membership.is_owner:
-        return 403, {"detail": "Only organization owners can delete the organization."}
+        raise HttpError(403, "Only organization owners can delete the organization.")
     org.delete()
     return 204, None
 
@@ -86,7 +83,7 @@ def update_member_role(request, org_id: int, user_id: int, payload: MemberRoleUp
     """Update a member's role. Only owners can do this."""
     membership = OrganizationService.get_membership(request.auth, org_id)
     if not membership or not membership.is_owner:
-        return 403, {"detail": "Only organization owners can change member roles."}
+        raise HttpError(403, "Only organization owners can change member roles.")
     updated = OrganizationService.update_member_role(org_id, user_id, payload.role)
     return 200, updated
 
@@ -99,6 +96,6 @@ def remove_member(request, org_id: int, user_id: int):
     """Remove a member from an organization. Admins and owners can do this."""
     membership = OrganizationService.get_membership(request.auth, org_id)
     if not membership or not membership.is_admin:
-        return 403, {"detail": "Only admins and owners can remove members."}
+        raise HttpError(403, "Only admins and owners can remove members.")
     OrganizationService.remove_member(org_id, user_id)
     return 204, None

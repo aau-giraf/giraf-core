@@ -1,22 +1,19 @@
 """Tests for Invitation model and API endpoints.
 
 Invitations let org admins invite users to join an organization.
-Written BEFORE implementation (TDD red phase).
 """
 import pytest
-from django.test import Client
 
+from apps.invitations.models import Invitation, InvitationStatus
+from apps.invitations.services import InvitationService
 from apps.organizations.models import Membership, Organization, OrgRole
 from apps.users.tests.factories import UserFactory
+from conftest import auth_header
+from core.exceptions import AlreadyMemberError, DuplicateInvitationError, ReceiverNotFoundError
 
 
 @pytest.fixture
-def client():
-    return Client()
-
-
-@pytest.fixture
-def admin(db):
+def admin_user(db):
     return UserFactory(username="admin", password="testpass123")
 
 
@@ -30,30 +27,11 @@ def receiver(db):
 
 
 @pytest.fixture
-def member(db):
-    return UserFactory(username="member", password="testpass123")
-
-
-@pytest.fixture
-def outsider(db):
-    return UserFactory(username="outsider", password="testpass123")
-
-
-@pytest.fixture
-def org(db, admin, member):
+def org(db, admin_user, member):
     org = Organization.objects.create(name="Sunflower School")
-    Membership.objects.create(user=admin, organization=org, role=OrgRole.ADMIN)
+    Membership.objects.create(user=admin_user, organization=org, role=OrgRole.ADMIN)
     Membership.objects.create(user=member, organization=org, role=OrgRole.MEMBER)
     return org
-
-
-def auth_header(client, username, password="testpass123"):
-    resp = client.post(
-        "/api/v1/token/pair",
-        data={"username": username, "password": password},
-        content_type="application/json",
-    )
-    return {"HTTP_AUTHORIZATION": f"Bearer {resp.json()['access']}"}
 
 
 # ---------------------------------------------------------------------------
@@ -63,43 +41,74 @@ def auth_header(client, username, password="testpass123"):
 
 @pytest.mark.django_db
 class TestInvitationModel:
-    def test_create_invitation(self, admin, receiver, org):
-        from apps.invitations.models import Invitation, InvitationStatus
-
+    def test_create_invitation(self, admin_user, receiver, org):
         inv = Invitation.objects.create(
             organization=org,
-            sender=admin,
+            sender=admin_user,
             receiver=receiver,
         )
         assert inv.pk is not None
         assert inv.status == InvitationStatus.PENDING
         assert inv.organization == org
-        assert inv.sender == admin
+        assert inv.sender == admin_user
         assert inv.receiver == receiver
         assert str(inv) == "Invitation → receiver to Sunflower School (pending)"
 
-    def test_unique_pending_per_user_org(self, admin, receiver, org):
+    def test_unique_pending_per_user_org(self, admin_user, receiver, org):
         """Cannot create two pending invitations for the same user+org."""
         from django.db import IntegrityError
 
-        from apps.invitations.models import Invitation
-
         Invitation.objects.create(
-            organization=org, sender=admin, receiver=receiver
+            organization=org, sender=admin_user, receiver=receiver
         )
         with pytest.raises(IntegrityError):
             Invitation.objects.create(
-                organization=org, sender=admin, receiver=receiver
+                organization=org, sender=admin_user, receiver=receiver
             )
 
-    def test_cascade_delete_org_deletes_invitations(self, admin, receiver, org):
-        from apps.invitations.models import Invitation
-
+    def test_cascade_delete_org_deletes_invitations(self, admin_user, receiver, org):
         Invitation.objects.create(
-            organization=org, sender=admin, receiver=receiver
+            organization=org, sender=admin_user, receiver=receiver
         )
         org.delete()
         assert Invitation.objects.count() == 0
+
+
+# ---------------------------------------------------------------------------
+# Service tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestInvitationService:
+    def test_send_raises_on_nonexistent_email(self, admin_user, org):
+        with pytest.raises(ReceiverNotFoundError):
+            InvitationService.send(
+                organization=org,
+                sender=admin_user,
+                receiver_email="nobody@example.com",
+            )
+
+    def test_send_raises_on_already_member(self, admin_user, org, member):
+        with pytest.raises(AlreadyMemberError):
+            InvitationService.send(
+                organization=org,
+                sender=admin_user,
+                receiver_email=member.email,
+            )
+
+    def test_send_raises_on_duplicate(self, admin_user, receiver, org):
+        InvitationService.send(
+            organization=org,
+            sender=admin_user,
+            receiver_email="receiver@example.com",
+        )
+        with pytest.raises(DuplicateInvitationError):
+            InvitationService.send(
+                organization=org,
+                sender=admin_user,
+                receiver_email="receiver@example.com",
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +118,7 @@ class TestInvitationModel:
 
 @pytest.mark.django_db
 class TestSendInvitation:
-    def test_admin_can_send_invitation(self, client, org, admin, receiver):
+    def test_admin_can_send_invitation(self, client, org, admin_user, receiver):
         headers = auth_header(client, "admin")
         response = client.post(
             f"/api/v1/organizations/{org.id}/invitations",
@@ -133,7 +142,8 @@ class TestSendInvitation:
         )
         assert response.status_code == 403
 
-    def test_cannot_invite_nonexistent_email(self, client, org, admin):
+    def test_cannot_invite_nonexistent_email(self, client, org, admin_user):
+        """Returns generic 400 to prevent email enumeration."""
         headers = auth_header(client, "admin")
         response = client.post(
             f"/api/v1/organizations/{org.id}/invitations",
@@ -141,9 +151,11 @@ class TestSendInvitation:
             content_type="application/json",
             **headers,
         )
-        assert response.status_code == 404
+        assert response.status_code == 400
+        assert "Cannot send invitation" in response.json()["detail"]
 
-    def test_cannot_invite_existing_member(self, client, org, admin, member):
+    def test_cannot_invite_existing_member(self, client, org, admin_user, member):
+        """Returns same generic 400 as nonexistent — no enumeration leak."""
         headers = auth_header(client, "admin")
         response = client.post(
             f"/api/v1/organizations/{org.id}/invitations",
@@ -151,20 +163,39 @@ class TestSendInvitation:
             content_type="application/json",
             **headers,
         )
-        assert response.status_code == 409
+        assert response.status_code == 400
+        assert "Cannot send invitation" in response.json()["detail"]
+
+    def test_no_user_and_already_member_return_same_response(
+        self, client, org, admin_user, member
+    ):
+        """Both no_user and already_member produce identical error responses."""
+        headers = auth_header(client, "admin")
+        resp_no_user = client.post(
+            f"/api/v1/organizations/{org.id}/invitations",
+            data={"receiver_email": "nobody@example.com"},
+            content_type="application/json",
+            **headers,
+        )
+        resp_member = client.post(
+            f"/api/v1/organizations/{org.id}/invitations",
+            data={"receiver_email": member.email},
+            content_type="application/json",
+            **headers,
+        )
+        assert resp_no_user.status_code == resp_member.status_code
+        assert resp_no_user.json()["detail"] == resp_member.json()["detail"]
 
     def test_duplicate_pending_invitation_rejected(
-        self, client, org, admin, receiver
+        self, client, org, admin_user, receiver
     ):
         headers = auth_header(client, "admin")
-        # First invite succeeds
         client.post(
             f"/api/v1/organizations/{org.id}/invitations",
             data={"receiver_email": "receiver@example.com"},
             content_type="application/json",
             **headers,
         )
-        # Second invite fails
         response = client.post(
             f"/api/v1/organizations/{org.id}/invitations",
             data={"receiver_email": "receiver@example.com"},
@@ -172,6 +203,17 @@ class TestSendInvitation:
             **headers,
         )
         assert response.status_code == 409
+
+    def test_invalid_email_format_rejected(self, client, org, admin_user):
+        """Email validation should reject malformed emails."""
+        headers = auth_header(client, "admin")
+        response = client.post(
+            f"/api/v1/organizations/{org.id}/invitations",
+            data={"receiver_email": "not-an-email"},
+            content_type="application/json",
+            **headers,
+        )
+        assert response.status_code == 422
 
 
 # ---------------------------------------------------------------------------
@@ -181,11 +223,9 @@ class TestSendInvitation:
 
 @pytest.mark.django_db
 class TestInvitationFlow:
-    def test_receiver_sees_their_invitations(self, client, org, admin, receiver):
-        from apps.invitations.models import Invitation
-
+    def test_receiver_sees_their_invitations(self, client, org, admin_user, receiver):
         Invitation.objects.create(
-            organization=org, sender=admin, receiver=receiver
+            organization=org, sender=admin_user, receiver=receiver
         )
         headers = auth_header(client, "receiver")
         response = client.get("/api/v1/invitations/received", **headers)
@@ -194,11 +234,9 @@ class TestInvitationFlow:
         assert len(body) == 1
         assert body[0]["organization_name"] == "Sunflower School"
 
-    def test_admin_sees_org_invitations(self, client, org, admin, receiver):
-        from apps.invitations.models import Invitation
-
+    def test_admin_sees_org_invitations(self, client, org, admin_user, receiver):
         Invitation.objects.create(
-            organization=org, sender=admin, receiver=receiver
+            organization=org, sender=admin_user, receiver=receiver
         )
         headers = auth_header(client, "admin")
         response = client.get(
@@ -209,12 +247,10 @@ class TestInvitationFlow:
         assert len(body) == 1
 
     def test_accept_invitation_creates_membership(
-        self, client, org, admin, receiver
+        self, client, org, admin_user, receiver
     ):
-        from apps.invitations.models import Invitation, InvitationStatus
-
         inv = Invitation.objects.create(
-            organization=org, sender=admin, receiver=receiver
+            organization=org, sender=admin_user, receiver=receiver
         )
         headers = auth_header(client, "receiver")
         response = client.post(
@@ -223,19 +259,15 @@ class TestInvitationFlow:
             **headers,
         )
         assert response.status_code == 200
-        # Check membership created
         assert Membership.objects.filter(
             user=receiver, organization=org, role=OrgRole.MEMBER
         ).exists()
-        # Check invitation status updated
         inv.refresh_from_db()
         assert inv.status == InvitationStatus.ACCEPTED
 
-    def test_reject_invitation(self, client, org, admin, receiver):
-        from apps.invitations.models import Invitation, InvitationStatus
-
+    def test_reject_invitation(self, client, org, admin_user, receiver):
         inv = Invitation.objects.create(
-            organization=org, sender=admin, receiver=receiver
+            organization=org, sender=admin_user, receiver=receiver
         )
         headers = auth_header(client, "receiver")
         response = client.post(
@@ -247,11 +279,9 @@ class TestInvitationFlow:
         inv.refresh_from_db()
         assert inv.status == InvitationStatus.REJECTED
 
-    def test_only_receiver_can_respond(self, client, org, admin, receiver):
-        from apps.invitations.models import Invitation
-
+    def test_only_receiver_can_respond(self, client, org, admin_user, receiver):
         inv = Invitation.objects.create(
-            organization=org, sender=admin, receiver=receiver
+            organization=org, sender=admin_user, receiver=receiver
         )
         headers = auth_header(client, "admin")
         response = client.post(
@@ -261,11 +291,9 @@ class TestInvitationFlow:
         )
         assert response.status_code == 403
 
-    def test_admin_can_delete_org_invitation(self, client, org, admin, receiver):
-        from apps.invitations.models import Invitation
-
+    def test_admin_can_delete_org_invitation(self, client, org, admin_user, receiver):
         inv = Invitation.objects.create(
-            organization=org, sender=admin, receiver=receiver
+            organization=org, sender=admin_user, receiver=receiver
         )
         headers = auth_header(client, "admin")
         response = client.delete(

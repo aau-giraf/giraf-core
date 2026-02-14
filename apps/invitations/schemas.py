@@ -1,9 +1,11 @@
 """Invitation schemas."""
+from pydantic import EmailStr
+
 from ninja import Field, Schema
 
 
 class InvitationCreateIn(Schema):
-    receiver_email: str
+    receiver_email: EmailStr
 
 
 class InvitationOut(Schema):
@@ -13,7 +15,3 @@ class InvitationOut(Schema):
     sender_username: str = Field(..., alias="sender.username")
     receiver_username: str = Field(..., alias="receiver.username")
     status: str
-
-
-class ErrorOut(Schema):
-    detail: str

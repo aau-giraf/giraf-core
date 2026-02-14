@@ -1,4 +1,6 @@
 """Test settings — SQLite, fast, no external dependencies."""
+from datetime import timedelta
+
 from config.settings.base import *  # noqa: F401, F403
 
 DEBUG = False
@@ -18,6 +20,6 @@ PASSWORD_HASHERS = [
 # Shorter token lifetimes for testing edge cases
 NINJA_JWT = {
     **NINJA_JWT,  # type: ignore[name-defined]  # noqa: F405
-    "ACCESS_TOKEN_LIFETIME": __import__("datetime").timedelta(minutes=5),
-    "REFRESH_TOKEN_LIFETIME": __import__("datetime").timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(minutes=30),
 }

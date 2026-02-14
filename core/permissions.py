@@ -5,7 +5,7 @@ All role checks use the hierarchy: OWNER > ADMIN > MEMBER.
 """
 from apps.organizations.models import Membership, OrgRole
 
-_ROLE_HIERARCHY = {
+ROLE_HIERARCHY: dict[str, int] = {
     OrgRole.MEMBER: 0,
     OrgRole.ADMIN: 1,
     OrgRole.OWNER: 2,
@@ -33,8 +33,8 @@ def check_role(user, org_id: int, *, min_role: str) -> tuple[bool, str]:
     if membership is None:
         return False, "You are not a member of this organization."
 
-    user_level = _ROLE_HIERARCHY.get(membership.role, -1)
-    required_level = _ROLE_HIERARCHY.get(min_role, 999)
+    user_level = ROLE_HIERARCHY.get(membership.role, -1)
+    required_level = ROLE_HIERARCHY.get(min_role, 999)
 
     if user_level >= required_level:
         return True, ""

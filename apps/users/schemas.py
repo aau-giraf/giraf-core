@@ -1,12 +1,14 @@
 """Pydantic schemas for the users app."""
 
+from pydantic import EmailStr
+
 from ninja import Schema
 
 
 class RegisterIn(Schema):
     username: str
     password: str
-    email: str = ""
+    email: EmailStr | None = None
     first_name: str = ""
     last_name: str = ""
 
@@ -14,7 +16,7 @@ class RegisterIn(Schema):
 class UserUpdateIn(Schema):
     first_name: str | None = None
     last_name: str | None = None
-    email: str | None = None
+    email: EmailStr | None = None
 
 
 class PasswordChangeIn(Schema):

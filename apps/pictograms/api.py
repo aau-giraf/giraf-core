@@ -2,18 +2,16 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from ninja import File, Form, Router, Schema
+from ninja.errors import HttpError
 from ninja.files import UploadedFile
 from ninja.pagination import LimitOffsetPagination, paginate
 
 from apps.organizations.models import OrgRole
 from apps.pictograms.models import Pictogram
 from core.permissions import check_role
+from core.schemas import ErrorOut
 
 router = Router(tags=["pictograms"])
-
-
-class ErrorOut(Schema):
-    detail: str
 
 
 class PictogramCreateIn(Schema):
@@ -42,7 +40,7 @@ def create_pictogram(request, payload: PictogramCreateIn):
     if payload.organization_id:
         allowed, msg = check_role(request.auth, payload.organization_id, min_role=OrgRole.ADMIN)
         if not allowed:
-            return 403, {"detail": msg}
+            raise HttpError(403, msg)
     pictogram = Pictogram.objects.create(
         name=payload.name,
         image_url=payload.image_url,
@@ -75,7 +73,7 @@ def delete_pictogram(request, pictogram_id: int):
     if pictogram.organization_id:
         allowed, msg = check_role(request.auth, pictogram.organization_id, min_role=OrgRole.ADMIN)
         if not allowed:
-            return 403, {"detail": msg}
+            raise HttpError(403, msg)
     pictogram.delete()
     return 204, None
 
@@ -91,7 +89,7 @@ def upload_pictogram(
     if organization_id:
         allowed, msg = check_role(request.auth, organization_id, min_role=OrgRole.ADMIN)
         if not allowed:
-            return 403, {"detail": msg}
+            raise HttpError(403, msg)
     pictogram = Pictogram.objects.create(
         name=name,
         image=image,

@@ -14,7 +14,7 @@ User = get_user_model()
 
 class UserService:
     @staticmethod
-    def register(*, username: str, password: str, email: str = "", first_name: str = "", last_name: str = "") -> User:
+    def register(*, username: str, password: str, email: str | None = None, first_name: str = "", last_name: str = "") -> User:
         """Create a new user with validated password.
 
         Raises:
@@ -33,7 +33,7 @@ class UserService:
         user = User.objects.create_user(
             username=username,
             password=password,
-            email=email,
+            email=email or "",
             first_name=first_name,
             last_name=last_name,
         )

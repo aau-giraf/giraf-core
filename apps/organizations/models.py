@@ -13,14 +13,6 @@ class OrgRole(models.TextChoices):
     OWNER = "owner", "Owner"
 
 
-# Role hierarchy: OWNER > ADMIN > MEMBER
-_ROLE_HIERARCHY = {
-    OrgRole.MEMBER: 0,
-    OrgRole.ADMIN: 1,
-    OrgRole.OWNER: 2,
-}
-
-
 class Organization(models.Model):
     """A school or institution serving kids with autism."""
 
@@ -68,7 +60,9 @@ class Membership(models.Model):
 
     class Meta:
         db_table = "memberships"
-        unique_together = [("user", "organization")]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "organization"], name="unique_membership"),
+        ]
         ordering = ["organization", "user"]
 
     def __str__(self) -> str:
@@ -76,16 +70,24 @@ class Membership(models.Model):
 
     @property
     def _role_level(self) -> int:
-        return _ROLE_HIERARCHY.get(self.role, 0)
+        from core.permissions import ROLE_HIERARCHY
+
+        return ROLE_HIERARCHY.get(self.role, 0)
 
     @property
     def is_member(self) -> bool:
-        return self._role_level >= _ROLE_HIERARCHY[OrgRole.MEMBER]
+        from core.permissions import ROLE_HIERARCHY
+
+        return self._role_level >= ROLE_HIERARCHY[OrgRole.MEMBER]
 
     @property
     def is_admin(self) -> bool:
-        return self._role_level >= _ROLE_HIERARCHY[OrgRole.ADMIN]
+        from core.permissions import ROLE_HIERARCHY
+
+        return self._role_level >= ROLE_HIERARCHY[OrgRole.ADMIN]
 
     @property
     def is_owner(self) -> bool:
-        return self._role_level >= _ROLE_HIERARCHY[OrgRole.OWNER]
+        from core.permissions import ROLE_HIERARCHY
+
+        return self._role_level >= ROLE_HIERARCHY[OrgRole.OWNER]

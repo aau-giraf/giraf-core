@@ -1,17 +1,15 @@
 """User API endpoints."""
 
 from django.core.exceptions import ValidationError
-from ninja import File, Router, Schema
+from ninja import File, Router
+from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
 from apps.users.schemas import PasswordChangeIn, RegisterIn, UserOut, UserUpdateIn
 from apps.users.services import UserService
+from core.schemas import ErrorOut
 
 router = Router(tags=["users"])
-
-
-class ErrorOut(Schema):
-    detail: str | list[str]
 
 
 @router.post("/auth/register", response={201: UserOut, 409: ErrorOut, 422: ErrorOut}, auth=None)
@@ -26,9 +24,9 @@ def register(request, payload: RegisterIn):
             last_name=payload.last_name,
         )
     except ValueError as e:
-        return 409, {"detail": str(e)}
+        raise HttpError(409, str(e))
     except ValidationError as e:
-        return 422, {"detail": e.messages}
+        raise HttpError(422, ", ".join(e.messages))
     return 201, user
 
 
@@ -51,9 +49,9 @@ def change_password(request, payload: PasswordChangeIn):
     try:
         UserService.change_password(request.auth, payload.old_password, payload.new_password)
     except ValueError as e:
-        return 400, {"detail": str(e)}
+        raise HttpError(400, str(e))
     except ValidationError as e:
-        return 422, {"detail": e.messages}
+        raise HttpError(422, ", ".join(e.messages))
     return 200, request.auth
 
 
@@ -70,6 +68,6 @@ def upload_profile_picture(request, file: File[UploadedFile]):
     try:
         UserService.upload_profile_picture(request.auth, file)
     except ValidationError as e:
-        return 422, {"detail": e.messages if hasattr(e, "messages") else str(e)}
-
+        msg = e.messages if hasattr(e, "messages") else [str(e)]
+        raise HttpError(422, ", ".join(msg))
     return 200, request.auth
