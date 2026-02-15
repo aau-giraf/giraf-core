@@ -275,3 +275,15 @@ class TestInvitationFlow:
         )
         assert response.status_code == 204
         assert not Invitation.objects.filter(id=inv.id).exists()
+
+
+# ---------------------------------------------------------------------------
+# Structural tests
+# ---------------------------------------------------------------------------
+
+
+class TestInvitationModelStructure:
+    def test_compound_indexes_exist(self):
+        index_names = {idx.name for idx in Invitation._meta.indexes}
+        assert "idx_invitation_receiver_status" in index_names
+        assert "idx_invitation_org_status" in index_names

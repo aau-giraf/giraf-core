@@ -5,11 +5,10 @@ All business logic lives here — never in API endpoints.
 
 import mimetypes
 
-from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
-User = get_user_model()
+from apps.users.models import User
 
 
 class UserService:

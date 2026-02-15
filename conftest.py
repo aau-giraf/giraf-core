@@ -4,10 +4,19 @@ Provides common factories and helpers used across all test modules.
 """
 
 import pytest
+from django.core.cache import cache
 from django.test import Client
 
 from apps.organizations.models import Membership, Organization, OrgRole
 from apps.users.tests.factories import UserFactory
+
+
+@pytest.fixture(autouse=True)
+def _clear_throttle_cache():
+    """Clear the cache before each test so rate limits don't leak across tests."""
+    cache.clear()
+    yield
+    cache.clear()
 
 
 @pytest.fixture

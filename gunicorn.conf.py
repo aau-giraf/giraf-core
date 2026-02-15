@@ -1,4 +1,5 @@
 """Gunicorn production configuration."""
+
 import multiprocessing
 
 # Workers

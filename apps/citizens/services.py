@@ -1,4 +1,5 @@
 """Business logic for citizen operations."""
+
 from apps.citizens.models import Citizen
 
 

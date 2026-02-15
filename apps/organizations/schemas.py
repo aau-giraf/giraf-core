@@ -1,4 +1,5 @@
 """Pydantic schemas for organizations."""
+
 from ninja import Schema
 
 

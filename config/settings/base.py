@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "ninja_extra",
     "ninja_jwt",
+    "ninja_jwt.token_blacklist",
     # GIRAF apps
     "apps.users",
     "apps.organizations",
@@ -140,6 +141,16 @@ MEDIA_ROOT = BASE_DIR / "media"
 _cors_raw = os.environ.get("CORS_ALLOWED_ORIGINS", "")
 CORS_ALLOWED_ORIGINS: list[str] = [o.strip() for o in _cors_raw.split(",") if o.strip()]
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only in dev
+
+# ---------------------------------------------------------------------------
+# Cache (used by rate limiting)
+# ---------------------------------------------------------------------------
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Default primary key field type

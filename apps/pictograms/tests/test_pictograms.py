@@ -4,8 +4,14 @@ Pictograms are visual aids used across all GIRAF apps.
 They can be org-specific or global (null organization).
 Written BEFORE implementation.
 """
+
+import io
+
 import pytest
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
+from PIL import Image
 
 from apps.organizations.models import Membership, Organization, OrgRole
 from apps.users.tests.factories import UserFactory
@@ -123,3 +129,106 @@ class TestPictogramAPI:
         response = client.delete(f"/api/v1/pictograms/{p.id}", **headers)
         assert response.status_code == 204
         assert not Pictogram.objects.filter(id=p.id).exists()
+
+
+def _make_test_image() -> SimpleUploadedFile:
+    """Create a minimal valid image file for testing."""
+    buf = io.BytesIO()
+    Image.new("RGB", (10, 10), color="red").save(buf, format="PNG")
+    buf.seek(0)
+    return SimpleUploadedFile("test.png", buf.read(), content_type="image/png")
+
+
+@pytest.mark.django_db
+class TestPictogramValidation:
+    def test_pictogram_requires_image_source(self):
+        from apps.pictograms.models import Pictogram
+
+        with pytest.raises(ValidationError):
+            Pictogram.objects.create(name="No Image", image_url="", image=None)
+
+    def test_pictogram_with_url_only_valid(self):
+        from apps.pictograms.models import Pictogram
+
+        p = Pictogram.objects.create(name="URL Only", image_url="https://example.com/pic.png")
+        assert p.pk is not None
+
+    def test_pictogram_with_file_only_valid(self):
+        from apps.pictograms.models import Pictogram
+
+        p = Pictogram.objects.create(name="File Only", image=_make_test_image())
+        assert p.pk is not None
+
+    def test_create_api_rejects_no_image_source(self, client, owner, org):
+        headers = auth_header(client, "owner")
+        response = client.post(
+            "/api/v1/pictograms",
+            data={"name": "No Image", "image_url": "", "organization_id": org.id},
+            content_type="application/json",
+            **headers,
+        )
+        assert response.status_code == 422
+
+
+@pytest.mark.django_db
+class TestPictogramUpload:
+    def test_upload_pictogram_creates_with_image(self, client, org, owner):
+        headers = auth_header(client, "owner")
+        image = _make_test_image()
+        response = client.post(
+            "/api/v1/pictograms/upload",
+            data={"name": "Uploaded", "image": image, "organization_id": org.id},
+            **headers,
+        )
+        assert response.status_code == 201
+        assert response.json()["name"] == "Uploaded"
+
+    def test_upload_pictogram_global(self, client, owner):
+        headers = auth_header(client, "owner")
+        image = _make_test_image()
+        response = client.post(
+            "/api/v1/pictograms/upload",
+            data={"name": "Global Upload", "image": image},
+            **headers,
+        )
+        assert response.status_code == 201
+        assert response.json()["organization_id"] is None
+
+
+@pytest.mark.django_db
+class TestPictogramPermissions:
+    def test_member_cannot_create_org_pictogram(self, client, org, member):
+        headers = auth_header(client, "member")
+        response = client.post(
+            "/api/v1/pictograms",
+            data={
+                "name": "Unauthorized",
+                "image_url": "https://example.com/pic.png",
+                "organization_id": org.id,
+            },
+            content_type="application/json",
+            **headers,
+        )
+        assert response.status_code == 403
+
+    def test_member_cannot_delete_org_pictogram(self, client, org, member):
+        from apps.pictograms.models import Pictogram
+
+        p = Pictogram.objects.create(name="OrgPic", image_url="https://example.com/p.png", organization=org)
+        headers = auth_header(client, "member")
+        response = client.delete(f"/api/v1/pictograms/{p.id}", **headers)
+        assert response.status_code == 403
+
+    def test_non_member_cannot_create_pictogram_in_other_org(self, client, org, non_member):
+        headers = auth_header(client, "outsider")
+        response = client.post(
+            "/api/v1/pictograms",
+            data={
+                "name": "Cross Org",
+                "image_url": "https://example.com/pic.png",
+                "organization_id": org.id,
+            },
+            content_type="application/json",
+            **headers,
+        )
+        assert response.status_code == 403

@@ -2,6 +2,7 @@
 
 Written BEFORE implementation.
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client

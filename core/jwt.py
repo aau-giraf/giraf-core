@@ -22,7 +22,7 @@ class TokenObtainPairInputSchema(TokenObtainInputSchemaBase):
 
     @classmethod
     def get_token(cls, user) -> dict:
-        values = {}
+        values: dict[str, object] = {}
         refresh = RefreshToken.for_user(user)
 
         # Build org_roles: {org_id: role} from memberships
@@ -34,6 +34,6 @@ class TokenObtainPairInputSchema(TokenObtainInputSchemaBase):
         refresh["org_roles"] = org_roles
 
         values["refresh"] = str(refresh)
-        values["access"] = str(refresh.access_token)
+        values["access"] = str(refresh.access_token)  # type: ignore[attr-defined]
         values["org_roles"] = org_roles
-        return values
+        return values  # type: ignore[return-value]

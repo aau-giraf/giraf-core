@@ -8,11 +8,17 @@ from ninja.files import UploadedFile
 from apps.users.schemas import PasswordChangeIn, RegisterIn, UserOut, UserUpdateIn
 from apps.users.services import UserService
 from core.schemas import ErrorOut
+from core.throttling import RegisterRateThrottle
 
 router = Router(tags=["users"])
 
 
-@router.post("/auth/register", response={201: UserOut, 409: ErrorOut, 422: ErrorOut}, auth=None)
+@router.post(
+    "/auth/register",
+    response={201: UserOut, 409: ErrorOut, 422: ErrorOut},
+    auth=None,
+    throttle=[RegisterRateThrottle()],
+)
 def register(request, payload: RegisterIn):
     """Register a new user account."""
     try:

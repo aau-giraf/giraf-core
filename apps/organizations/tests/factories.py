@@ -1,4 +1,5 @@
 """Factories for organization test data."""
+
 import factory
 
 from apps.organizations.models import Membership, Organization, OrgRole

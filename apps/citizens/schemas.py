@@ -1,4 +1,5 @@
 """Pydantic schemas for citizens."""
+
 from ninja import Schema
 
 

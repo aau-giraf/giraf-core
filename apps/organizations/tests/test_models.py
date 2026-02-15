@@ -2,6 +2,7 @@
 
 Written BEFORE implementation — defines the expected domain behavior.
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
@@ -35,9 +36,7 @@ class TestMembershipModel:
 
         user = UserFactory()
         org = Organization.objects.create(name="Test School")
-        membership = Membership.objects.create(
-            user=user, organization=org, role=OrgRole.MEMBER
-        )
+        membership = Membership.objects.create(user=user, organization=org, role=OrgRole.MEMBER)
         assert membership.pk is not None
         assert membership.role == OrgRole.MEMBER
         assert membership.user == user

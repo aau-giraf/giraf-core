@@ -1,4 +1,5 @@
 """Pydantic schemas for grades."""
+
 from ninja import Schema
 
 

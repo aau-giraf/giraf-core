@@ -1,10 +1,9 @@
 """Business logic for organization operations."""
-from django.contrib.auth import get_user_model
+
 from django.shortcuts import get_object_or_404
 
 from apps.organizations.models import Membership, Organization, OrgRole
-
-User = get_user_model()
+from apps.users.models import User
 
 
 class OrganizationService:
@@ -25,9 +24,7 @@ class OrganizationService:
     def get_membership(user: User, org_id: int) -> Membership | None:
         """Get the user's membership for an organization, or None."""
         try:
-            return Membership.objects.select_related("organization").get(
-                user=user, organization_id=org_id
-            )
+            return Membership.objects.select_related("organization").get(user=user, organization_id=org_id)
         except Membership.DoesNotExist:
             return None
 
@@ -39,9 +36,7 @@ class OrganizationService:
     @staticmethod
     def update_member_role(org_id: int, target_user_id: int, new_role: str) -> Membership:
         """Update a member's role in an organization."""
-        membership = get_object_or_404(
-            Membership, organization_id=org_id, user_id=target_user_id
-        )
+        membership = get_object_or_404(Membership, organization_id=org_id, user_id=target_user_id)
         membership.role = new_role
         membership.save(update_fields=["role"])
         return membership
@@ -49,7 +44,5 @@ class OrganizationService:
     @staticmethod
     def remove_member(org_id: int, target_user_id: int) -> None:
         """Remove a member from an organization."""
-        membership = get_object_or_404(
-            Membership, organization_id=org_id, user_id=target_user_id
-        )
+        membership = get_object_or_404(Membership, organization_id=org_id, user_id=target_user_id)
         membership.delete()

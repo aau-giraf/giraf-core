@@ -1,9 +1,16 @@
 """GIRAF Core — Ninja API root configuration."""
+
 from django.db import connection
 from ninja import Schema
-from ninja_extra import NinjaExtraAPI
+from ninja_extra import NinjaExtraAPI, api_controller
+from ninja_extra.permissions import AllowAny
 from ninja_jwt.authentication import JWTAuth
-from ninja_jwt.controller import NinjaJWTDefaultController
+from ninja_jwt.controller import (
+    ControllerBase,
+    TokenBlackListController,
+    TokenObtainPairController,
+    TokenVerificationController,
+)
 
 from apps.citizens.api import router as citizens_router
 from apps.grades.api import router as grades_router
@@ -12,6 +19,7 @@ from apps.invitations.api import receiver_router as invitations_receiver_router
 from apps.organizations.api import router as organizations_router
 from apps.pictograms.api import router as pictograms_router
 from apps.users.api import router as users_router
+from core.throttling import LoginRateThrottle
 
 api = NinjaExtraAPI(
     title="GIRAF Core API",
@@ -19,6 +27,24 @@ api = NinjaExtraAPI(
     description="Shared domain service for the GIRAF platform.",
     auth=JWTAuth(),
 )
+
+
+@api_controller(
+    "/token",
+    permissions=[AllowAny],
+    tags=["token"],
+    auth=None,
+    throttle=[LoginRateThrottle()],
+)
+class GirafJWTController(
+    ControllerBase,
+    TokenBlackListController,
+    TokenVerificationController,
+    TokenObtainPairController,
+):
+    """JWT controller with rate-limited login and token blacklisting."""
+
+    auto_import = False
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +69,7 @@ def health(request):
 
 
 # Register JWT token endpoints: /api/v1/token/pair, /api/v1/token/refresh, /api/v1/token/verify
-api.register_controllers(NinjaJWTDefaultController)
+api.register_controllers(GirafJWTController)
 
 # Register app routers
 api.add_router("", users_router)

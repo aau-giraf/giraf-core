@@ -3,6 +3,7 @@
 Invitations let org admins invite users to join an organization.
 Tracks status (pending → accepted/rejected) for auditing.
 """
+
 from django.conf import settings
 from django.db import models
 
@@ -48,10 +49,11 @@ class Invitation(models.Model):
                 name="unique_pending_invitation",
             ),
         ]
+        indexes = [
+            models.Index(fields=["receiver", "status"], name="idx_invitation_receiver_status"),
+            models.Index(fields=["organization", "status"], name="idx_invitation_org_status"),
+        ]
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return (
-            f"Invitation → {self.receiver.username} "
-            f"to {self.organization.name} ({self.status})"
-        )
+        return f"Invitation → {self.receiver.username} to {self.organization.name} ({self.status})"

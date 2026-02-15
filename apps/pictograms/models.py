@@ -3,6 +3,8 @@
 Pictograms are visual aids used for communication with autistic children.
 They can belong to an organization (custom) or be global (organization=None).
 """
+
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -31,3 +33,11 @@ class Pictogram(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def clean(self):
+        if not self.image_url and not self.image:
+            raise ValidationError("A pictogram must have either an image_url or an uploaded image.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

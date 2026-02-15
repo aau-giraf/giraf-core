@@ -2,6 +2,7 @@
 
 Grades are class groupings of citizens within an organization.
 """
+
 from django.db import models
 
 

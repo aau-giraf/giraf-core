@@ -19,6 +19,7 @@ from apps.organizations.models import Organization
 from core.exceptions import AlreadyMemberError, DuplicateInvitationError, ReceiverNotFoundError
 from core.permissions import check_role
 from core.schemas import ErrorOut
+from core.throttling import InvitationSendRateThrottle
 
 org_router = Router(tags=["Invitations"])
 receiver_router = Router(tags=["Invitations"])
@@ -33,6 +34,7 @@ receiver_router = Router(tags=["Invitations"])
     "/{org_id}/invitations",
     response={201: InvitationOut, 400: ErrorOut, 403: ErrorOut, 404: ErrorOut, 409: ErrorOut},
     auth=JWTAuth(),
+    throttle=[InvitationSendRateThrottle()],
 )
 def send_invitation(request, org_id: int, payload: InvitationCreateIn):
     ok, msg = check_role(request.auth, org_id, min_role="admin")

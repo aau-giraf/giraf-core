@@ -2,6 +2,7 @@
 
 Citizens are children with autism served by an organization.
 """
+
 from django.db import models
 
 

@@ -3,6 +3,7 @@
 Citizens are kids with autism, belonging to an organization.
 Written BEFORE implementation.
 """
+
 import pytest
 from django.test import Client
 

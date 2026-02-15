@@ -2,6 +2,7 @@
 
 These test the reusable permission helpers that check org membership/roles.
 """
+
 import pytest
 
 from apps.organizations.models import Membership, Organization, OrgRole
