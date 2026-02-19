@@ -35,3 +35,7 @@ class AlreadyMemberError(InvitationError, ConflictError):
 
 class DuplicateInvitationError(InvitationError, ConflictError):
     """A pending invitation already exists for this user+org."""
+
+
+class InvitationSendError(InvitationError, BadRequestError):
+    """Generic send failure — hides specific cause to prevent enumeration."""

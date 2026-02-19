@@ -16,7 +16,6 @@ from apps.invitations.models import Invitation
 from apps.invitations.schemas import InvitationCreateIn, InvitationOut
 from apps.invitations.services import InvitationService
 from apps.organizations.models import Organization
-from core.exceptions import AlreadyMemberError, BadRequestError, ReceiverNotFoundError
 from core.permissions import check_role
 from core.schemas import ErrorOut
 from core.throttling import InvitationSendRateThrottle
@@ -42,17 +41,11 @@ def send_invitation(request, org_id: int, payload: InvitationCreateIn):
         raise HttpError(403, msg)
 
     org = get_object_or_404(Organization, id=org_id)
-    try:
-        result = InvitationService.send(
-            organization=org,
-            sender=request.auth,
-            receiver_email=payload.receiver_email,
-        )
-    except (ReceiverNotFoundError, AlreadyMemberError):
-        raise BadRequestError("Cannot send invitation.")
-
-    inv = Invitation.objects.select_related("organization", "sender", "receiver").get(id=result.id)
-    return 201, inv
+    return 201, InvitationService.send(
+        organization=org,
+        sender=request.auth,
+        receiver_email=payload.receiver_email,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +107,7 @@ def list_received_invitations(request):
 
 @receiver_router.post(
     "/{invitation_id}/accept",
-    response={200: InvitationOut, 403: ErrorOut, 404: ErrorOut},
+    response={200: InvitationOut, 400: ErrorOut, 403: ErrorOut, 404: ErrorOut},
     auth=JWTAuth(),
 )
 def accept_invitation(request, invitation_id: int):
@@ -136,7 +129,7 @@ def accept_invitation(request, invitation_id: int):
 
 @receiver_router.post(
     "/{invitation_id}/reject",
-    response={200: InvitationOut, 403: ErrorOut, 404: ErrorOut},
+    response={200: InvitationOut, 400: ErrorOut, 403: ErrorOut, 404: ErrorOut},
     auth=JWTAuth(),
 )
 def reject_invitation(request, invitation_id: int):

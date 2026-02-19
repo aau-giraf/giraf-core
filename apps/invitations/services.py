@@ -5,7 +5,7 @@ from django.db import IntegrityError, transaction
 
 from apps.invitations.models import Invitation, InvitationStatus
 from apps.organizations.models import Membership, OrgRole
-from core.exceptions import AlreadyMemberError, DuplicateInvitationError, ReceiverNotFoundError
+from core.exceptions import BadRequestError, DuplicateInvitationError, InvitationSendError
 
 User = get_user_model()
 
@@ -17,17 +17,16 @@ class InvitationService:
         """Create an invitation.
 
         Raises:
-            ReceiverNotFoundError: No user with that email.
-            AlreadyMemberError: User is already a member of the org.
+            InvitationSendError: No user with that email or user is already a member.
             DuplicateInvitationError: A pending invitation already exists.
         """
         try:
             receiver = User.objects.get(email=receiver_email)
         except User.DoesNotExist:
-            raise ReceiverNotFoundError("No user with that email.")
+            raise InvitationSendError("Cannot send invitation.")
 
         if Membership.objects.filter(user=receiver, organization=organization).exists():
-            raise AlreadyMemberError("User is already a member.")
+            raise InvitationSendError("Cannot send invitation.")
 
         try:
             inv = Invitation.objects.create(
@@ -38,7 +37,7 @@ class InvitationService:
         except IntegrityError:
             raise DuplicateInvitationError("Pending invitation already exists.")
 
-        return inv
+        return Invitation.objects.select_related("organization", "sender", "receiver").get(id=inv.id)
 
     @staticmethod
     def list_received(user):
@@ -57,6 +56,8 @@ class InvitationService:
     @transaction.atomic
     def accept(invitation: Invitation) -> None:
         """Accept invitation: create membership, update status."""
+        if invitation.status != InvitationStatus.PENDING:
+            raise BadRequestError("Invitation is no longer pending.")
         Membership.objects.get_or_create(
             user=invitation.receiver,
             organization=invitation.organization,
@@ -67,6 +68,8 @@ class InvitationService:
 
     @staticmethod
     def reject(invitation: Invitation) -> None:
+        if invitation.status != InvitationStatus.PENDING:
+            raise BadRequestError("Invitation is no longer pending.")
         invitation.status = InvitationStatus.REJECTED
         invitation.save(update_fields=["status"])
 
