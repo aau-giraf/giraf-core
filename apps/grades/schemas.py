@@ -1,14 +1,15 @@
 """Pydantic schemas for grades."""
 
 from ninja import Schema
+from pydantic import Field
 
 
 class GradeCreateIn(Schema):
-    name: str
+    name: str = Field(min_length=1, max_length=255)
 
 
 class GradeUpdateIn(Schema):
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 class GradeOut(Schema):

@@ -1,11 +1,12 @@
 """Pictogram schemas."""
 
 from ninja import Schema
+from pydantic import Field
 
 
 class PictogramCreateIn(Schema):
-    name: str
-    image_url: str
+    name: str = Field(min_length=1, max_length=255)
+    image_url: str = Field(max_length=500)
     organization_id: int | None = None
 
 

@@ -69,26 +69,20 @@ class Membership(models.Model):
     def __str__(self) -> str:
         return f"{self.user.username} @ {self.organization.name} ({self.role})"
 
+    _ROLE_LEVEL: dict[str, int] = {OrgRole.MEMBER: 0, OrgRole.ADMIN: 1, OrgRole.OWNER: 2}
+
     @property
     def _role_level(self) -> int:
-        from core.permissions import ROLE_HIERARCHY
-
-        return ROLE_HIERARCHY.get(self.role, 0)
+        return self._ROLE_LEVEL.get(self.role, 0)
 
     @property
     def is_member(self) -> bool:
-        from core.permissions import ROLE_HIERARCHY
-
-        return self._role_level >= ROLE_HIERARCHY[OrgRole.MEMBER]
+        return self._role_level >= self._ROLE_LEVEL[OrgRole.MEMBER]
 
     @property
     def is_admin(self) -> bool:
-        from core.permissions import ROLE_HIERARCHY
-
-        return self._role_level >= ROLE_HIERARCHY[OrgRole.ADMIN]
+        return self._role_level >= self._ROLE_LEVEL[OrgRole.ADMIN]
 
     @property
     def is_owner(self) -> bool:
-        from core.permissions import ROLE_HIERARCHY
-
-        return self._role_level >= ROLE_HIERARCHY[OrgRole.OWNER]
+        return self._role_level >= self._ROLE_LEVEL[OrgRole.OWNER]

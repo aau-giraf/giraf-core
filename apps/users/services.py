@@ -3,15 +3,19 @@
 All business logic lives here — never in API endpoints.
 """
 
+import logging
 import mimetypes
+import uuid
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from PIL import Image
 
 from apps.users.models import User
 from core.exceptions import BusinessValidationError, ConflictError, ResourceNotFoundError
+from core.validators import validate_image_upload
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -49,6 +53,7 @@ class UserService:
             first_name=first_name,
             last_name=last_name,
         )
+        logger.info("User registered: id=%d username=%s", user.id, user.username)
         return user
 
     @staticmethod
@@ -58,13 +63,20 @@ class UserService:
     ) -> User:
         """Update user profile fields. Only updates non-None values."""
         user = UserService._get_user_or_raise(user_id)
+        updated_fields: list[str] = []
         if first_name is not None:
             user.first_name = first_name
+            updated_fields.append("first_name")
         if last_name is not None:
             user.last_name = last_name
+            updated_fields.append("last_name")
         if email is not None:
+            if User.objects.filter(email=email).exclude(id=user_id).exists():
+                raise ConflictError("A user with this email already exists.")
             user.email = email
-        user.save()
+            updated_fields.append("email")
+        if updated_fields:
+            user.save(update_fields=updated_fields)
         return user
 
     @staticmethod
@@ -92,9 +104,11 @@ class UserService:
     @staticmethod
     @transaction.atomic
     def delete_user(*, user_id: int) -> None:
-        """Hard delete user account."""
+        """Deactivate user account (soft delete)."""
         user = UserService._get_user_or_raise(user_id)
-        user.delete()
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+        logger.info("User deactivated: id=%d username=%s", user.id, user.username)
 
     @staticmethod
     @transaction.atomic
@@ -105,28 +119,14 @@ class UserService:
             BusinessValidationError: If file type or size is invalid.
         """
         user = UserService._get_user_or_raise(user_id)
-
-        # Validate file type
-        mime_type, _ = mimetypes.guess_type(file.name)
-        allowed_types = ["image/jpeg", "image/png", "image/webp"]
-        if mime_type not in allowed_types:
-            raise BusinessValidationError("Only JPEG, PNG, and WebP images are allowed.")
-
-        # Validate file size (max 5MB)
-        max_size = 5 * 1024 * 1024
-        if file.size > max_size:
-            raise BusinessValidationError("File size must not exceed 5MB.")
-
-        try:
-            Image.open(file).verify()
-            file.seek(0)
-        except Exception:
-            raise BusinessValidationError("File is not a valid image.")
+        mime_type = validate_image_upload(file)
 
         # Delete old profile picture if exists
         if user.profile_picture:
             user.profile_picture.delete(save=False)
 
-        # Save new profile picture
-        user.profile_picture.save(file.name, file, save=True)
+        # Save new profile picture with sanitized filename
+        ext = mimetypes.guess_extension(mime_type) or ".bin"
+        safe_name = f"{uuid.uuid4().hex}{ext}"
+        user.profile_picture.save(safe_name, file, save=True)
         return user
