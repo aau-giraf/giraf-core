@@ -6,6 +6,7 @@ Provides common factories and helpers used across all test modules.
 import pytest
 from django.core.cache import cache
 from django.test import Client
+from ninja_jwt.tokens import AccessToken
 
 from apps.organizations.models import Membership, Organization, OrgRole
 from apps.users.tests.factories import UserFactory
@@ -61,8 +62,14 @@ def second_org(db, non_member):
     return org
 
 
+def auth_header_for_user(user) -> dict:
+    """Get JWT auth header by creating a token directly (no HTTP round-trip)."""
+    token = AccessToken.for_user(user)
+    return {"HTTP_AUTHORIZATION": f"Bearer {str(token)}"}
+
+
 def auth_header(client: Client, username: str, password: str = "testpass123") -> dict:
-    """Get JWT auth header for a user."""
+    """Get JWT auth header for a user via HTTP (legacy helper)."""
     resp = client.post(
         "/api/v1/token/pair",
         data={"username": username, "password": password},

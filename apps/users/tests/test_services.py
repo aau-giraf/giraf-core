@@ -39,10 +39,11 @@ class TestUserService(TestCase):
             UserService.change_password(user_id=self.user.id, old_password="StrongPassword123!", new_password="weak")
 
     def test_delete_user(self):
-        """Test deleting a user."""
+        """Test deactivating a user (soft delete)."""
         user_id = self.user.id
         UserService.delete_user(user_id=self.user.id)
-        self.assertFalse(User.objects.filter(id=user_id).exists())
+        user = User.objects.get(id=user_id)
+        self.assertFalse(user.is_active)
 
     def test_upload_profile_picture_oversized(self):
         """Test that uploading an oversized image raises BusinessValidationError."""

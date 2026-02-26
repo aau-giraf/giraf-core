@@ -168,7 +168,7 @@ class TestUpdateMemberRole:
             content_type="application/json",
             **headers,
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_cannot_demote_last_owner(self, client, user, other_user):
         headers = auth_header(client, "testuser")

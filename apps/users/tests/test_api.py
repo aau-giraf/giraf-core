@@ -169,8 +169,9 @@ class TestDeleteAccount:
         response = client.delete("/api/v1/users/me", **headers)
         assert response.status_code == 204
 
-        # Verify user no longer exists
-        assert not User.objects.filter(id=user_id).exists()
+        # Verify user is deactivated (soft delete)
+        user_obj = User.objects.get(id=user_id)
+        assert not user_obj.is_active
 
     def test_delete_account_cannot_login_after(self, client, user):
         headers = get_auth_header(client)

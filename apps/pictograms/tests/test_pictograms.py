@@ -147,6 +147,8 @@ class TestPictogramUpload:
         assert response.json()["name"] == "Uploaded"
 
     def test_upload_pictogram_global(self, client, owner):
+        owner.is_superuser = True
+        owner.save(update_fields=["is_superuser"])
         headers = auth_header(client, "owner")
         image = _make_test_image()
         response = client.post(
@@ -156,6 +158,16 @@ class TestPictogramUpload:
         )
         assert response.status_code == 201
         assert response.json()["organization_id"] is None
+
+    def test_non_superuser_cannot_upload_global_pictogram(self, client, owner):
+        headers = auth_header(client, "owner")
+        image = _make_test_image()
+        response = client.post(
+            "/api/v1/pictograms/upload",
+            data={"name": "Global Upload", "image": image},
+            **headers,
+        )
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
