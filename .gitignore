@@ -38,5 +38,12 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Claude Code / AI tooling
+# AI / LLM tooling
+CLAUDE.md
+.claude/
+.github/copilot-instructions.md
 *.skill
+
+# Boilerplate docs (kept locally, not in repo)
+CONTRIBUTING.md
+SECURITY.md
