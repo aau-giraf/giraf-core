@@ -1,5 +1,6 @@
 """GIRAF Core — Ninja API root configuration."""
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection
 from ninja import Schema
 from ninja_extra import NinjaExtraAPI, api_controller
@@ -61,6 +62,15 @@ def service_error(request, exc):
     return api.create_response(request, {"detail": "An unexpected service error occurred."}, status=500)
 
 
+@api.exception_handler(DjangoValidationError)
+def django_validation_error(request, exc):
+    if hasattr(exc, "message_dict"):
+        detail = exc.message_dict
+    else:
+        detail = exc.messages
+    return api.create_response(request, {"detail": detail}, status=422)
+
+
 @api_controller(
     "/token",
     permissions=[AllowAny],
@@ -104,6 +114,11 @@ def health(request):
 api.register_controllers(GirafJWTController)
 
 # Register app routers
+#
+# Routing convention:
+#   - Creation endpoints are nested under the parent: POST /organizations/{org_id}/citizens
+#   - Direct access endpoints are flat: GET /citizens/{id}, PATCH /citizens/{id}
+#   - Pictograms are fully flat (org_id passed in body/query) since they can be global.
 api.add_router("", users_router)
 api.add_router("/organizations", organizations_router)
 api.add_router("", citizens_router)

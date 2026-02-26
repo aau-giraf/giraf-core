@@ -71,7 +71,7 @@ def list_members(request, org_id: int):
 def update_member_role(request, org_id: int, user_id: int, payload: MemberRoleUpdateIn):
     """Update a member's role. Only owners can do this."""
     check_role_or_raise(request.auth, org_id, OrgRole.OWNER)
-    updated = OrganizationService.update_member_role(org_id, user_id, payload.role)
+    updated = OrganizationService.update_member_role(org_id, user_id, payload.role, requesting_user=request.auth)
     return 200, updated
 
 
@@ -82,5 +82,5 @@ def update_member_role(request, org_id: int, user_id: int, payload: MemberRoleUp
 def remove_member(request, org_id: int, user_id: int):
     """Remove a member from an organization. Admins and owners can do this."""
     check_role_or_raise(request.auth, org_id, OrgRole.ADMIN)
-    OrganizationService.remove_member(org_id, user_id)
+    OrganizationService.remove_member(org_id, user_id, requesting_user=request.auth)
     return 204, None

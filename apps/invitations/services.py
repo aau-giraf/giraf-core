@@ -1,5 +1,7 @@
 """Invitation business logic."""
 
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 
@@ -7,14 +9,19 @@ from apps.invitations.models import Invitation, InvitationStatus
 from apps.organizations.models import Membership, OrgRole
 from core.exceptions import BadRequestError, DuplicateInvitationError, InvitationSendError, ResourceNotFoundError
 
+logger = logging.getLogger(__name__)
+
 User = get_user_model()
 
 
 class InvitationService:
     @staticmethod
-    def _get_invitation_or_raise(invitation_id: int) -> Invitation:
+    def _get_invitation_or_raise(invitation_id: int, *, for_update: bool = False) -> Invitation:
+        qs = Invitation.objects.select_related("organization", "sender", "receiver")
+        if for_update:
+            qs = qs.select_for_update()
         try:
-            return Invitation.objects.select_related("organization", "sender", "receiver").get(id=invitation_id)
+            return qs.get(id=invitation_id)
         except Invitation.DoesNotExist:
             raise ResourceNotFoundError(f"Invitation {invitation_id} not found.")
 
@@ -48,6 +55,7 @@ class InvitationService:
         except IntegrityError:
             raise DuplicateInvitationError("Pending invitation already exists.")
 
+        logger.info("Invitation sent: id=%d org=%d sender=%d receiver=%d", inv.id, org_id, sender_id, receiver.id)
         return Invitation.objects.select_related("organization", "sender", "receiver").get(id=inv.id)
 
     @staticmethod
@@ -67,7 +75,7 @@ class InvitationService:
     @transaction.atomic
     def accept(*, invitation_id: int) -> Invitation:
         """Accept invitation: create membership, update status."""
-        invitation = InvitationService._get_invitation_or_raise(invitation_id)
+        invitation = InvitationService._get_invitation_or_raise(invitation_id, for_update=True)
         if invitation.status != InvitationStatus.PENDING:
             raise BadRequestError("Invitation is no longer pending.")
         Membership.objects.get_or_create(
@@ -77,15 +85,23 @@ class InvitationService:
         )
         invitation.status = InvitationStatus.ACCEPTED
         invitation.save(update_fields=["status"])
+        logger.info(
+            "Invitation accepted: id=%d user=%d org=%d",
+            invitation.id,
+            invitation.receiver_id,
+            invitation.organization_id,
+        )
         return invitation
 
     @staticmethod
+    @transaction.atomic
     def reject(*, invitation_id: int) -> Invitation:
-        invitation = InvitationService._get_invitation_or_raise(invitation_id)
+        invitation = InvitationService._get_invitation_or_raise(invitation_id, for_update=True)
         if invitation.status != InvitationStatus.PENDING:
             raise BadRequestError("Invitation is no longer pending.")
         invitation.status = InvitationStatus.REJECTED
         invitation.save(update_fields=["status"])
+        logger.info("Invitation rejected: id=%d user=%d", invitation.id, invitation.receiver_id)
         return invitation
 
     @staticmethod

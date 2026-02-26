@@ -16,9 +16,11 @@ router = Router(tags=["pictograms"])
 
 @router.post("", response={201: PictogramOut, 403: ErrorOut, 422: ErrorOut})
 def create_pictogram(request, payload: PictogramCreateIn):
-    """Create a pictogram. If org-scoped, requires admin role in that org."""
+    """Create a pictogram. Org-scoped requires admin role; global requires superuser."""
     if payload.organization_id:
         check_role_or_raise(request.auth, payload.organization_id, OrgRole.ADMIN)
+    elif not request.auth.is_superuser:
+        raise HttpError(403, "Only superusers can create global pictograms.")
 
     pictogram = PictogramService.create_pictogram(
         name=payload.name,
@@ -31,7 +33,9 @@ def create_pictogram(request, payload: PictogramCreateIn):
 @router.get("", response=list[PictogramOut])
 @paginate(LimitOffsetPagination)
 def list_pictograms(request, organization_id: int | None = None):
-    """List pictograms. Returns global + org-specific if org_id provided."""
+    """List pictograms. Returns global + org-specific if org_id provided (requires membership)."""
+    if organization_id:
+        check_role_or_raise(request.auth, organization_id, OrgRole.MEMBER)
     return PictogramService.list_pictograms(organization_id)
 
 
@@ -42,9 +46,11 @@ def upload_pictogram(
     name: Form[str],
     organization_id: Form[int | None] = None,
 ):
-    """Upload a pictogram with an image file. Requires admin role if org-scoped."""
+    """Upload a pictogram with an image file. Org-scoped requires admin; global requires superuser."""
     if organization_id:
         check_role_or_raise(request.auth, organization_id, OrgRole.ADMIN)
+    elif not request.auth.is_superuser:
+        raise HttpError(403, "Only superusers can create global pictograms.")
 
     pictogram = PictogramService.upload_pictogram(
         name=name,

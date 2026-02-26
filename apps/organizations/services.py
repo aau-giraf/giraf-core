@@ -1,10 +1,14 @@
 """Business logic for organization operations."""
 
+import logging
+
 from django.db import transaction
 
 from apps.organizations.models import Membership, Organization, OrgRole
 from apps.users.models import User
 from core.exceptions import BadRequestError, ResourceNotFoundError
+
+logger = logging.getLogger(__name__)
 
 
 class OrganizationService:
@@ -14,6 +18,7 @@ class OrganizationService:
         """Create an organization and make the creator the owner."""
         org = Organization.objects.create(name=name)
         Membership.objects.create(user=creator, organization=org, role=OrgRole.OWNER)
+        logger.info("Organization created: id=%d name=%s by user=%d", org.id, org.name, creator.id)
         return org
 
     @staticmethod
@@ -61,6 +66,7 @@ class OrganizationService:
     def delete_organization(*, org_id: int) -> None:
         """Delete an organization."""
         org = OrganizationService._get_org_or_raise(org_id)
+        logger.info("Organization deleted: id=%d name=%s", org.id, org.name)
         org.delete()
 
     @staticmethod
@@ -73,11 +79,14 @@ class OrganizationService:
 
     @staticmethod
     @transaction.atomic
-    def update_member_role(org_id: int, target_user_id: int, new_role: str) -> Membership:
+    def update_member_role(org_id: int, target_user_id: int, new_role: str, *, requesting_user: User) -> Membership:
         """Update a member's role in an organization."""
         valid_roles = {r.value for r in OrgRole}
         if new_role not in valid_roles:
             raise BadRequestError(f"Invalid role '{new_role}'. Must be one of: {', '.join(sorted(valid_roles))}.")
+
+        if requesting_user.id == target_user_id:
+            raise BadRequestError("You cannot change your own role.")
 
         try:
             membership = Membership.objects.get(organization_id=org_id, user_id=target_user_id)
@@ -88,12 +97,16 @@ class OrganizationService:
 
         membership.role = new_role
         membership.save(update_fields=["role"])
+        logger.info("Role changed: org=%d user=%d new_role=%s", org_id, target_user_id, new_role)
         return membership
 
     @staticmethod
     @transaction.atomic
-    def remove_member(org_id: int, target_user_id: int) -> None:
+    def remove_member(org_id: int, target_user_id: int, *, requesting_user: User) -> None:
         """Remove a member from an organization."""
+        if requesting_user.id == target_user_id:
+            raise BadRequestError("You cannot remove yourself from an organization.")
+
         try:
             membership = Membership.objects.get(organization_id=org_id, user_id=target_user_id)
         except Membership.DoesNotExist:
@@ -101,4 +114,5 @@ class OrganizationService:
 
         OrganizationService._check_last_owner(org_id, membership)
 
+        logger.info("Member removed: org=%d user=%d", org_id, target_user_id)
         membership.delete()
