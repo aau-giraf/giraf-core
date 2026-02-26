@@ -1,14 +1,12 @@
 """Business logic for pictogram operations."""
 
-import mimetypes
-
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Q
-from PIL import Image
 
 from apps.pictograms.models import Pictogram
 from core.exceptions import BusinessValidationError, ResourceNotFoundError
+from core.validators import validate_image_upload
 
 
 class PictogramService:
@@ -49,20 +47,7 @@ class PictogramService:
         Raises:
             BusinessValidationError: If file type or size is invalid.
         """
-        mime_type, _ = mimetypes.guess_type(image.name)
-        allowed_types = ["image/jpeg", "image/png", "image/webp"]
-        if mime_type not in allowed_types:
-            raise BusinessValidationError("Only JPEG, PNG, and WebP images are allowed.")
-
-        max_size = 5 * 1024 * 1024
-        if image.size > max_size:
-            raise BusinessValidationError("File size must not exceed 5MB.")
-
-        try:
-            Image.open(image).verify()
-            image.seek(0)
-        except Exception:
-            raise BusinessValidationError("File is not a valid image.")
+        validate_image_upload(image)
 
         return Pictogram.objects.create(
             name=name,
