@@ -33,6 +33,9 @@ python_files = ["tests.py", "test_*.py", "*_tests.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore:get_api_controller\\(\\) is deprecated:DeprecationWarning:ninja_extra",
+]
 
 [tool.ruff]
 target-version = "py312"
