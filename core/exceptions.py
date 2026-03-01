@@ -17,6 +17,10 @@ class ConflictError(ServiceError):
     """The operation conflicts with existing state (e.g. duplicates)."""
 
 
+class PermissionDeniedError(ServiceError):
+    """The user lacks permission to perform the requested action."""
+
+
 class BusinessValidationError(ServiceError):
     """The operation violates a business rule."""
 

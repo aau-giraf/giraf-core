@@ -97,14 +97,12 @@ class TestCheckRoleOrRaise:
         # Should not raise
         check_role_or_raise(user, org.id, OrgRole.MEMBER)
 
-    def test_raises_403_when_unauthorized(self):
-        from ninja.errors import HttpError
-
+    def test_raises_permission_denied_when_unauthorized(self):
+        from core.exceptions import PermissionDeniedError
         from core.permissions import check_role_or_raise
 
         user = UserFactory()
         org = Organization.objects.create(name="Test School")
 
-        with pytest.raises(HttpError) as exc_info:
+        with pytest.raises(PermissionDeniedError):
             check_role_or_raise(user, org.id, OrgRole.MEMBER)
-        assert exc_info.value.status_code == 403

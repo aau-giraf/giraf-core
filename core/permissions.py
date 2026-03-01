@@ -4,9 +4,8 @@ Reusable helpers for checking organization membership and role-based access.
 All role checks use the hierarchy: OWNER > ADMIN > MEMBER.
 """
 
-from ninja.errors import HttpError
-
 from apps.organizations.models import ROLE_HIERARCHY, Membership
+from core.exceptions import PermissionDeniedError
 
 
 def get_membership_or_none(user, org_id: int) -> Membership | None:
@@ -38,24 +37,24 @@ def check_role(user, org_id: int, *, min_role: str) -> tuple[bool, str]:
 
 
 def check_role_or_raise(user, org_id: int, min_role: str) -> None:
-    """Check role and raise HttpError(403) if insufficient."""
+    """Check role and raise PermissionDeniedError if insufficient."""
     allowed, msg = check_role(user, org_id, min_role=min_role)
     if not allowed:
-        raise HttpError(403, msg)
+        raise PermissionDeniedError(msg)
 
 
 def check_invitation_receiver(user, invitation) -> None:
-    """Raise HttpError(403) if the user is not the invitation's receiver."""
+    """Raise PermissionDeniedError if the user is not the invitation's receiver."""
     if invitation.receiver_id != user.id:
-        raise HttpError(403, "Only the receiver can respond.")
+        raise PermissionDeniedError("Only the receiver can respond.")
 
 
 def check_org_or_superuser(user, org_id: int | None, *, min_role: str, action: str) -> None:
     """Require org role if org-scoped, or superuser if global.
 
-    Raises HttpError(403) if the user lacks permission.
+    Raises PermissionDeniedError if the user lacks permission.
     """
     if org_id:
         check_role_or_raise(user, org_id, min_role)
     elif not user.is_superuser:
-        raise HttpError(403, f"Only superusers can {action}.")
+        raise PermissionDeniedError(f"Only superusers can {action}.")

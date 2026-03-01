@@ -117,6 +117,7 @@ Services raise domain exceptions from `core/exceptions.py`. These are caught by 
 | Exception                  | HTTP Status | When to use                              |
 | -------------------------- | ----------- | ---------------------------------------- |
 | `BadRequestError`          | 400         | Invalid input that isn't a validation issue |
+| `PermissionDeniedError`    | 403         | User lacks required role or permission   |
 | `ResourceNotFoundError`    | 404         | Entity doesn't exist                     |
 | `ConflictError`            | 409         | Duplicate resource (e.g. username taken) |
 | `BusinessValidationError`  | 422         | Domain validation failure                |
@@ -416,3 +417,25 @@ uv run mypy apps/ config/ core/
 ```
 
 Ruff is configured for Python 3.12, line length 120, with migrations excluded.
+
+## Good First Issues
+
+These are self-contained tasks ideal for getting familiar with the codebase:
+
+### 1. Add test factories to all apps
+
+**Apps affected:** `citizens`, `grades`, `pictograms`, `invitations`
+
+Only `users` and `organizations` have `factories.py` files using `factory_boy`. The other four apps create test data inline. Add a `tests/factories.py` to each, following the pattern in `apps/users/tests/factories.py` and `apps/organizations/tests/factories.py`. Then update existing tests to use the new factories.
+
+### 2. Add a `seed_dev_data` management command
+
+Create a `manage.py seed_dev_data` command that populates the local database with realistic sample data — a few users, organizations with memberships, citizens, grades, pictograms, and invitations. This lets new developers get a working local environment without manually calling API endpoints. See [Django docs on custom management commands](https://docs.djangoproject.com/en/5.2/howto/custom-management-commands/).
+
+### 3. Standardize test file organization
+
+Test files are inconsistent across apps. `users/` has 6 focused test files (`test_api.py`, `test_services.py`, `test_models.py`, etc.), while `grades/` has a single `test_grades.py` covering everything. Pick one convention — splitting by layer (`test_api.py`, `test_services.py`) is recommended — and apply it to `citizens`, `grades`, `pictograms`, and `invitations`.
+
+### 4. Write a "how to add a new app" guide
+
+The `models → schemas → services → api` pattern is consistent but undocumented as a step-by-step. Add a section to `CONTRIBUTING.md` (or a new `docs/adding-an-app.md`) with a checklist: create the app, add to `INSTALLED_APPS`, create the four files, register the router in `config/api.py`, add factories, write tests.

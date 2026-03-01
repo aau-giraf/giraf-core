@@ -24,6 +24,7 @@ from core.exceptions import (
     BadRequestError,
     BusinessValidationError,
     ConflictError,
+    PermissionDeniedError,
     ResourceNotFoundError,
     ServiceError,
 )
@@ -40,6 +41,11 @@ api = NinjaExtraAPI(
 @api.exception_handler(BadRequestError)
 def bad_request(request, exc):
     return api.create_response(request, {"detail": str(exc)}, status=400)
+
+
+@api.exception_handler(PermissionDeniedError)
+def permission_denied(request, exc):
+    return api.create_response(request, {"detail": str(exc)}, status=403)
 
 
 @api.exception_handler(ResourceNotFoundError)
