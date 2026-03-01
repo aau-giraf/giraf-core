@@ -34,6 +34,13 @@ class Pictogram(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    @property
+    def effective_image_url(self) -> str:
+        """Return uploaded image URL if available, otherwise the stored image_url."""
+        if self.image:
+            return str(self.image.url)
+        return self.image_url
+
     def clean(self):
         if not self.image_url and not self.image:
             raise ValidationError("A pictogram must have either an image_url or an uploaded image.")

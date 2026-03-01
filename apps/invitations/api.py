@@ -14,7 +14,7 @@ from ninja_jwt.authentication import JWTAuth
 from apps.invitations.schemas import InvitationCreateIn, InvitationOut
 from apps.invitations.services import InvitationService
 from apps.organizations.models import OrgRole
-from core.permissions import check_role_or_raise
+from core.permissions import check_invitation_receiver, check_role_or_raise
 from core.schemas import ErrorOut
 from core.throttling import InvitationSendRateThrottle
 
@@ -104,8 +104,7 @@ def list_received_invitations(request):
 )
 def accept_invitation(request, invitation_id: int):
     inv = InvitationService.get_invitation(invitation_id)
-    if inv.receiver_id != request.auth.id:
-        raise HttpError(403, "Only the receiver can respond.")
+    check_invitation_receiver(request.auth, inv)
     return InvitationService.accept(invitation_id=invitation_id)
 
 
@@ -121,6 +120,5 @@ def accept_invitation(request, invitation_id: int):
 )
 def reject_invitation(request, invitation_id: int):
     inv = InvitationService.get_invitation(invitation_id)
-    if inv.receiver_id != request.auth.id:
-        raise HttpError(403, "Only the receiver can respond.")
+    check_invitation_receiver(request.auth, inv)
     return InvitationService.reject(invitation_id=invitation_id)

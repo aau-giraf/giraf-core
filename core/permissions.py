@@ -44,6 +44,12 @@ def check_role_or_raise(user, org_id: int, min_role: str) -> None:
         raise HttpError(403, msg)
 
 
+def check_invitation_receiver(user, invitation) -> None:
+    """Raise HttpError(403) if the user is not the invitation's receiver."""
+    if invitation.receiver_id != user.id:
+        raise HttpError(403, "Only the receiver can respond.")
+
+
 def check_org_or_superuser(user, org_id: int | None, *, min_role: str, action: str) -> None:
     """Require org role if org-scoped, or superuser if global.
 

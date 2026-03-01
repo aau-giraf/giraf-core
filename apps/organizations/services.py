@@ -96,10 +96,6 @@ class OrganizationService:
     @transaction.atomic
     def update_member_role(org_id: int, target_user_id: int, new_role: str, *, requesting_user: User) -> Membership:
         """Update a member's role in an organization."""
-        valid_roles = {r.value for r in OrgRole}
-        if new_role not in valid_roles:
-            raise BadRequestError(f"Invalid role '{new_role}'. Must be one of: {', '.join(sorted(valid_roles))}.")
-
         if requesting_user.id == target_user_id:
             raise BadRequestError("You cannot change your own role.")
 

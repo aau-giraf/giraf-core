@@ -18,7 +18,4 @@ class PictogramOut(Schema):
 
     @staticmethod
     def resolve_image_url(obj):
-        """Return image file URL if uploaded, otherwise the stored image_url."""
-        if obj.image:
-            return obj.image.url
-        return obj.image_url
+        return obj.effective_image_url
