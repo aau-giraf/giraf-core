@@ -6,7 +6,8 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 
 from apps.invitations.models import Invitation, InvitationStatus
-from apps.organizations.models import Membership, OrgRole
+from apps.organizations.models import Membership
+from apps.organizations.services import OrganizationService
 from core.exceptions import BadRequestError, DuplicateInvitationError, InvitationSendError, ResourceNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -78,10 +79,9 @@ class InvitationService:
         invitation = InvitationService._get_invitation_or_raise(invitation_id, for_update=True)
         if invitation.status != InvitationStatus.PENDING:
             raise BadRequestError("Invitation is no longer pending.")
-        Membership.objects.get_or_create(
-            user=invitation.receiver,
-            organization=invitation.organization,
-            defaults={"role": OrgRole.MEMBER},
+        OrganizationService.add_member(
+            user_id=invitation.receiver_id,
+            org_id=invitation.organization_id,
         )
         invitation.status = InvitationStatus.ACCEPTED
         invitation.save(update_fields=["status"])

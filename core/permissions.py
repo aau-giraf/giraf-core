@@ -6,13 +6,7 @@ All role checks use the hierarchy: OWNER > ADMIN > MEMBER.
 
 from ninja.errors import HttpError
 
-from apps.organizations.models import Membership, OrgRole
-
-ROLE_HIERARCHY: dict[str, int] = {
-    OrgRole.MEMBER: 0,
-    OrgRole.ADMIN: 1,
-    OrgRole.OWNER: 2,
-}
+from apps.organizations.models import ROLE_HIERARCHY, Membership
 
 
 def get_membership_or_none(user, org_id: int) -> Membership | None:
@@ -48,3 +42,14 @@ def check_role_or_raise(user, org_id: int, min_role: str) -> None:
     allowed, msg = check_role(user, org_id, min_role=min_role)
     if not allowed:
         raise HttpError(403, msg)
+
+
+def check_org_or_superuser(user, org_id: int | None, *, min_role: str, action: str) -> None:
+    """Require org role if org-scoped, or superuser if global.
+
+    Raises HttpError(403) if the user lacks permission.
+    """
+    if org_id:
+        check_role_or_raise(user, org_id, min_role)
+    elif not user.is_superuser:
+        raise HttpError(403, f"Only superusers can {action}.")

@@ -14,6 +14,14 @@ class OrgRole(models.TextChoices):
     OWNER = "owner", "Owner"
 
 
+# Single source of truth for role hierarchy, used by Membership and core.permissions.
+ROLE_HIERARCHY: dict[str, int] = {
+    OrgRole.MEMBER: 0,
+    OrgRole.ADMIN: 1,
+    OrgRole.OWNER: 2,
+}
+
+
 class Organization(models.Model):
     """A school or institution serving kids with autism."""
 
@@ -69,20 +77,18 @@ class Membership(models.Model):
     def __str__(self) -> str:
         return f"{self.user.username} @ {self.organization.name} ({self.role})"
 
-    _ROLE_LEVEL: dict[str, int] = {OrgRole.MEMBER: 0, OrgRole.ADMIN: 1, OrgRole.OWNER: 2}
-
     @property
     def _role_level(self) -> int:
-        return self._ROLE_LEVEL.get(self.role, 0)
+        return ROLE_HIERARCHY.get(self.role, 0)
 
     @property
     def is_member(self) -> bool:
-        return self._role_level >= self._ROLE_LEVEL[OrgRole.MEMBER]
+        return self._role_level >= ROLE_HIERARCHY[OrgRole.MEMBER]
 
     @property
     def is_admin(self) -> bool:
-        return self._role_level >= self._ROLE_LEVEL[OrgRole.ADMIN]
+        return self._role_level >= ROLE_HIERARCHY[OrgRole.ADMIN]
 
     @property
     def is_owner(self) -> bool:
-        return self._role_level >= self._ROLE_LEVEL[OrgRole.OWNER]
+        return self._role_level >= ROLE_HIERARCHY[OrgRole.OWNER]

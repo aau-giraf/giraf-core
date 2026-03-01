@@ -4,8 +4,6 @@ All business logic lives here — never in API endpoints.
 """
 
 import logging
-import mimetypes
-import uuid
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -13,7 +11,7 @@ from django.db import transaction
 
 from apps.users.models import User
 from core.exceptions import BusinessValidationError, ConflictError, ResourceNotFoundError
-from core.validators import validate_image_upload
+from core.validators import sanitized_image_filename, validate_image_upload
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +124,6 @@ class UserService:
             user.profile_picture.delete(save=False)
 
         # Save new profile picture with sanitized filename
-        ext = mimetypes.guess_extension(mime_type) or ".bin"
-        safe_name = f"{uuid.uuid4().hex}{ext}"
+        safe_name = sanitized_image_filename(mime_type)
         user.profile_picture.save(safe_name, file, save=True)
         return user

@@ -1,6 +1,7 @@
 """Reusable validation utilities."""
 
 import mimetypes
+import uuid
 
 from PIL import Image
 
@@ -32,3 +33,9 @@ def validate_image_upload(file) -> str:
         raise BusinessValidationError("File is not a valid image.")
 
     return mime_type
+
+
+def sanitized_image_filename(mime_type: str) -> str:
+    """Generate a UUID-based filename with the correct extension for a MIME type."""
+    ext = mimetypes.guess_extension(mime_type) or ".bin"
+    return f"{uuid.uuid4().hex}{ext}"

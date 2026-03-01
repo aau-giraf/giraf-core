@@ -70,6 +70,21 @@ class OrganizationService:
         org.delete()
 
     @staticmethod
+    def add_member(*, user_id: int, org_id: int, role: str = OrgRole.MEMBER) -> Membership:
+        """Add a user as a member of an organization (idempotent).
+
+        Returns the existing membership if one already exists.
+        """
+        membership, created = Membership.objects.get_or_create(
+            user_id=user_id,
+            organization_id=org_id,
+            defaults={"role": role},
+        )
+        if created:
+            logger.info("Member added: org=%d user=%d role=%s", org_id, user_id, role)
+        return membership
+
+    @staticmethod
     def _check_last_owner(org_id: int, membership: Membership) -> None:
         """Raise if this membership is the last owner of the organization."""
         if membership.role == OrgRole.OWNER:
