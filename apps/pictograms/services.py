@@ -2,7 +2,7 @@
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
 from apps.pictograms.models import Pictogram
 from core.exceptions import BusinessValidationError, ResourceNotFoundError
@@ -30,7 +30,7 @@ class PictogramService:
             raise BusinessValidationError(" ".join(e.messages))
 
     @staticmethod
-    def list_pictograms(organization_id: int | None = None):
+    def list_pictograms(organization_id: int | None = None) -> QuerySet[Pictogram]:
         if organization_id:
             return Pictogram.objects.filter(Q(organization_id=organization_id) | Q(organization__isnull=True))
         return Pictogram.objects.filter(organization__isnull=True)

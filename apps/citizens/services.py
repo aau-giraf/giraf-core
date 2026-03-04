@@ -1,6 +1,7 @@
 """Business logic for citizen operations."""
 
 from django.db import transaction
+from django.db.models import QuerySet
 
 from apps.citizens.models import Citizen
 from core.exceptions import ResourceNotFoundError
@@ -24,7 +25,7 @@ class CitizenService:
         )
 
     @staticmethod
-    def list_citizens(org_id: int):
+    def list_citizens(org_id: int) -> QuerySet[Citizen]:
         return Citizen.objects.filter(organization_id=org_id)
 
     @staticmethod

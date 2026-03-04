@@ -1,6 +1,7 @@
 """Business logic for grade operations."""
 
 from django.db import transaction
+from django.db.models import QuerySet
 
 from apps.citizens.models import Citizen
 from apps.grades.models import Grade
@@ -33,7 +34,7 @@ class GradeService:
         return Grade.objects.create(name=name, organization_id=org_id)
 
     @staticmethod
-    def list_grades(org_id: int):
+    def list_grades(org_id: int) -> QuerySet[Grade]:
         return Grade.objects.filter(organization_id=org_id)
 
     @staticmethod
