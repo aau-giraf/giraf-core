@@ -3,6 +3,7 @@
 import logging
 
 from django.db import transaction
+from django.db.models import QuerySet
 
 from apps.organizations.models import Membership, Organization, OrgRole
 from apps.users.models import User
@@ -34,21 +35,13 @@ class OrganizationService:
         return OrganizationService._get_org_or_raise(org_id)
 
     @staticmethod
-    def get_user_organizations(user: User):
+    def get_user_organizations(user: User) -> QuerySet[Organization]:
         """Return organizations the user is a member of."""
         org_ids = Membership.objects.filter(user=user).values_list("organization_id", flat=True)
         return Organization.objects.filter(id__in=org_ids)
 
     @staticmethod
-    def get_membership(user: User, org_id: int) -> Membership | None:
-        """Get the user's membership for an organization, or None."""
-        try:
-            return Membership.objects.select_related("organization").get(user=user, organization_id=org_id)
-        except Membership.DoesNotExist:
-            return None
-
-    @staticmethod
-    def get_org_members(org_id: int):
+    def get_org_members(org_id: int) -> QuerySet[Membership]:
         """Return all memberships for an organization."""
         return Membership.objects.filter(organization_id=org_id).select_related("user")
 
