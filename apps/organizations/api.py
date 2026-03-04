@@ -29,7 +29,7 @@ def list_organizations(request):
 @router.get("/{org_id}", response={200: OrgOut, 403: ErrorOut, 404: ErrorOut})
 def get_organization(request, org_id: int):
     """Get organization detail. Must be a member."""
-    check_role_or_raise(request.auth, org_id, OrgRole.MEMBER)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.MEMBER)
     org = OrganizationService.get_organization(org_id)
     return 200, org
 
@@ -40,7 +40,7 @@ def get_organization(request, org_id: int):
 )
 def update_organization(request, org_id: int, payload: OrgUpdateIn):
     """Update an organization. Only owners can do this."""
-    check_role_or_raise(request.auth, org_id, OrgRole.OWNER)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.OWNER)
     org = OrganizationService.update_organization(org_id=org_id, name=payload.name)
     return 200, org
 
@@ -51,7 +51,7 @@ def update_organization(request, org_id: int, payload: OrgUpdateIn):
 )
 def delete_organization(request, org_id: int):
     """Delete an organization. Only owners can do this."""
-    check_role_or_raise(request.auth, org_id, OrgRole.OWNER)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.OWNER)
     OrganizationService.delete_organization(org_id=org_id)
     return 204, None
 
@@ -60,7 +60,7 @@ def delete_organization(request, org_id: int):
 @paginate(LimitOffsetPagination)
 def list_members(request, org_id: int):
     """List members of an organization. Must be a member."""
-    check_role_or_raise(request.auth, org_id, OrgRole.MEMBER)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.MEMBER)
     return OrganizationService.get_org_members(org_id)
 
 
@@ -70,7 +70,7 @@ def list_members(request, org_id: int):
 )
 def update_member_role(request, org_id: int, user_id: int, payload: MemberRoleUpdateIn):
     """Update a member's role. Only owners can do this."""
-    check_role_or_raise(request.auth, org_id, OrgRole.OWNER)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.OWNER)
     updated = OrganizationService.update_member_role(org_id, user_id, payload.role, requesting_user=request.auth)
     return 200, updated
 
@@ -81,6 +81,6 @@ def update_member_role(request, org_id: int, user_id: int, payload: MemberRoleUp
 )
 def remove_member(request, org_id: int, user_id: int):
     """Remove a member from an organization. Admins and owners can do this."""
-    check_role_or_raise(request.auth, org_id, OrgRole.ADMIN)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.ADMIN)
     OrganizationService.remove_member(org_id, user_id, requesting_user=request.auth)
     return 204, None

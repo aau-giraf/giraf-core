@@ -21,7 +21,7 @@ router = Router(tags=["citizens"])
 )
 def create_citizen(request, org_id: int, payload: CitizenCreateIn):
     """Create a citizen in an organization. Requires membership."""
-    check_role_or_raise(request.auth, org_id, OrgRole.MEMBER)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.MEMBER)
     citizen = CitizenService.create_citizen(org_id=org_id, first_name=payload.first_name, last_name=payload.last_name)
     return 201, citizen
 
@@ -33,7 +33,7 @@ def create_citizen(request, org_id: int, payload: CitizenCreateIn):
 @paginate(LimitOffsetPagination)
 def list_citizens(request, org_id: int):
     """List citizens in an organization. Requires membership."""
-    check_role_or_raise(request.auth, org_id, OrgRole.MEMBER)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.MEMBER)
     return CitizenService.list_citizens(org_id)
 
 
@@ -47,7 +47,7 @@ def list_citizens(request, org_id: int):
 def get_citizen(request, citizen_id: int):
     """Get citizen detail. Requires membership in the citizen's org."""
     citizen = CitizenService.get_citizen(citizen_id)
-    check_role_or_raise(request.auth, citizen.organization_id, OrgRole.MEMBER)
+    check_role_or_raise(request.auth, citizen.organization_id, min_role=OrgRole.MEMBER)
     return 200, citizen
 
 
@@ -58,7 +58,7 @@ def get_citizen(request, citizen_id: int):
 def update_citizen(request, citizen_id: int, payload: CitizenUpdateIn):
     """Update a citizen. Requires membership in the citizen's org."""
     citizen = CitizenService.get_citizen(citizen_id)
-    check_role_or_raise(request.auth, citizen.organization_id, OrgRole.MEMBER)
+    check_role_or_raise(request.auth, citizen.organization_id, min_role=OrgRole.MEMBER)
     updated = CitizenService.update_citizen(
         citizen_id=citizen_id, first_name=payload.first_name, last_name=payload.last_name
     )
@@ -72,6 +72,6 @@ def update_citizen(request, citizen_id: int, payload: CitizenUpdateIn):
 def delete_citizen(request, citizen_id: int):
     """Delete a citizen. Requires admin role in the citizen's org."""
     citizen = CitizenService.get_citizen(citizen_id)
-    check_role_or_raise(request.auth, citizen.organization_id, OrgRole.ADMIN)
+    check_role_or_raise(request.auth, citizen.organization_id, min_role=OrgRole.ADMIN)
     CitizenService.delete_citizen(citizen_id=citizen_id)
     return 204, None

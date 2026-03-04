@@ -33,7 +33,7 @@ def create_pictogram(request, payload: PictogramCreateIn):
 def list_pictograms(request, organization_id: int | None = None):
     """List pictograms. Returns global + org-specific if org_id provided (requires membership)."""
     if organization_id:
-        check_role_or_raise(request.auth, organization_id, OrgRole.MEMBER)
+        check_role_or_raise(request.auth, organization_id, min_role=OrgRole.MEMBER)
     return PictogramService.list_pictograms(organization_id)
 
 

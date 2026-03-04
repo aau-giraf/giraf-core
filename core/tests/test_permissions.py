@@ -95,7 +95,7 @@ class TestCheckRoleOrRaise:
         Membership.objects.create(user=user, organization=org, role=OrgRole.OWNER)
 
         # Should not raise
-        check_role_or_raise(user, org.id, OrgRole.MEMBER)
+        check_role_or_raise(user, org.id, min_role=OrgRole.MEMBER)
 
     def test_raises_permission_denied_when_unauthorized(self):
         from core.exceptions import PermissionDeniedError
@@ -105,4 +105,4 @@ class TestCheckRoleOrRaise:
         org = Organization.objects.create(name="Test School")
 
         with pytest.raises(PermissionDeniedError):
-            check_role_or_raise(user, org.id, OrgRole.MEMBER)
+            check_role_or_raise(user, org.id, min_role=OrgRole.MEMBER)

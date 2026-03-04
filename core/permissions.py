@@ -36,7 +36,7 @@ def check_role(user, org_id: int, *, min_role: str) -> tuple[bool, str]:
     return False, f"Insufficient permissions. Required: {min_role}, your role: {membership.role}."
 
 
-def check_role_or_raise(user, org_id: int, min_role: str) -> None:
+def check_role_or_raise(user, org_id: int, *, min_role: str) -> None:
     """Check role and raise PermissionDeniedError if insufficient."""
     allowed, msg = check_role(user, org_id, min_role=min_role)
     if not allowed:
@@ -55,6 +55,6 @@ def check_org_or_superuser(user, org_id: int | None, *, min_role: str, action: s
     Raises PermissionDeniedError if the user lacks permission.
     """
     if org_id:
-        check_role_or_raise(user, org_id, min_role)
+        check_role_or_raise(user, org_id, min_role=min_role)
     elif not user.is_superuser:
         raise PermissionDeniedError(f"Only superusers can {action}.")
