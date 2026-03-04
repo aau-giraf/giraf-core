@@ -29,14 +29,6 @@ class InvitationError(ServiceError):
     """Base exception for invitation operations."""
 
 
-class ReceiverNotFoundError(InvitationError, ResourceNotFoundError):
-    """No user exists with the given email."""
-
-
-class AlreadyMemberError(InvitationError, ConflictError):
-    """The user is already a member of the organization."""
-
-
 class DuplicateInvitationError(InvitationError, ConflictError):
     """A pending invitation already exists for this user+org."""
 
