@@ -7,7 +7,6 @@ Two routers:
 """
 
 from ninja import Router
-from ninja.errors import HttpError
 from ninja.pagination import LimitOffsetPagination, paginate
 from ninja_jwt.authentication import JWTAuth
 
@@ -34,7 +33,7 @@ receiver_router = Router(tags=["Invitations"])
     throttle=[InvitationSendRateThrottle()],
 )
 def send_invitation(request, org_id: int, payload: InvitationCreateIn):
-    check_role_or_raise(request.auth, org_id, OrgRole.ADMIN)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.ADMIN)
     return 201, InvitationService.send(
         org_id=org_id,
         sender_id=request.auth.id,
@@ -54,7 +53,7 @@ def send_invitation(request, org_id: int, payload: InvitationCreateIn):
 )
 @paginate(LimitOffsetPagination)
 def list_org_invitations(request, org_id: int):
-    check_role_or_raise(request.auth, org_id, OrgRole.ADMIN)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.ADMIN)
     return InvitationService.list_for_org(org_id)
 
 
@@ -69,11 +68,8 @@ def list_org_invitations(request, org_id: int):
     auth=JWTAuth(),
 )
 def delete_invitation(request, org_id: int, invitation_id: int):
-    check_role_or_raise(request.auth, org_id, OrgRole.ADMIN)
-    inv = InvitationService.get_invitation(invitation_id)
-    if inv.organization_id != org_id:
-        raise HttpError(404, f"Invitation {invitation_id} not found.")
-    InvitationService.delete(invitation_id=invitation_id)
+    check_role_or_raise(request.auth, org_id, min_role=OrgRole.ADMIN)
+    InvitationService.delete(invitation_id=invitation_id, org_id=org_id)
     return 204, None
 
 

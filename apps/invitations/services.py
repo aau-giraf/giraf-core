@@ -4,6 +4,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
+from django.db.models import QuerySet
 
 from apps.invitations.models import Invitation, InvitationStatus
 from apps.organizations.models import Membership
@@ -60,13 +61,13 @@ class InvitationService:
         return Invitation.objects.select_related("organization", "sender", "receiver").get(id=inv.id)
 
     @staticmethod
-    def list_received(user):
+    def list_received(user) -> QuerySet[Invitation]:
         return Invitation.objects.filter(receiver=user, status=InvitationStatus.PENDING).select_related(
             "organization", "sender", "receiver"
         )
 
     @staticmethod
-    def list_for_org(organization_id: int):
+    def list_for_org(organization_id: int) -> QuerySet[Invitation]:
         return Invitation.objects.filter(
             organization_id=organization_id,
             status=InvitationStatus.PENDING,
@@ -105,6 +106,9 @@ class InvitationService:
         return invitation
 
     @staticmethod
-    def delete(*, invitation_id: int) -> None:
+    def delete(*, invitation_id: int, org_id: int) -> None:
+        """Delete an invitation, verifying it belongs to the given organization."""
         invitation = InvitationService._get_invitation_or_raise(invitation_id)
+        if invitation.organization_id != org_id:
+            raise ResourceNotFoundError(f"Invitation {invitation_id} not found.")
         invitation.delete()
