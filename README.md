@@ -258,7 +258,7 @@ Create a `manage.py seed_dev_data` command that populates the local database wit
 
 ### 3. Standardize test file organization
 
-Test files are inconsistent across apps. `users/` has 6 focused test files (`test_api.py`, `test_services.py`, `test_models.py`, etc.), while `grades/` has a single `test_grades.py` covering everything. Pick one convention — splitting by layer (`test_api.py`, `test_services.py`) is recommended — and apply it to `citizens`, `grades`, `pictograms`, and `invitations`.
+Test files are partially split across apps but still inconsistent. `users/` and `organizations/` are fully split by layer (`test_api.py`, `test_services.py`, `test_models.py`), and `citizens/`, `grades/`, and `pictograms/` each have a separate `test_services.py` but still keep a catch-all file alongside it. `invitations/` has only a single `test_invitations.py`. Finish the split: rename the catch-all files into `test_api.py` (and `test_models.py` where applicable) so every app follows the same convention.
 
 ### 4. Write a "how to add a new app" guide
 
