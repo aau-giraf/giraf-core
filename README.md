@@ -24,36 +24,6 @@ GIRAF Core is the **single source of truth** for all shared data. The platform h
 
 4. **Each app stores only its own domain data.** Weekplanner stores activities and schedules. VTA stores exercises and progress. Food Planner stores meals and menus. Each has its own database. Core holds everything shared.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Mobile Apps (Expo / React Native)            │
-│   Weekplanner          Food Planner          VTA               │
-└──────┬──────────────────────┬───────────────────┬──────────────┘
-       │ domain data          │ domain data       │ domain data
-       ▼                      ▼                   ▼
-┌──────────────┐   ┌──────────────┐   ┌──────────────────┐
-│ Weekplanner  │   │ Food Planner │   │ VTA Backend      │
-│ Backend      │   │ Backend      │   │                  │
-│ (.NET 8)     │   │ (planned)    │   │ (.NET + SignalR) │
-│ Activities,  │   │ Meals, Menus │   │ Exercises,       │
-│ Schedules    │   │ Nutrition    │   │ Progress         │
-└──────┬───────┘   └──────┬───────┘   └──────┬───────────┘
-       │                  │                   │
-       │  users, orgs, citizens, pictograms   │
-       ▼                  ▼                   ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    GIRAF Core API  ← (this repo)               │
-│                    (Django + Ninja, Python)                     │
-│                                                                 │
-│  Auth/JWT │ Users │ Orgs │ Citizens │ Grades │ Pictos │ Invites │
-└─────────────────────────┬───────────────────────────────────────┘
-                          │
-                    ┌─────▼─────┐
-                    │  Core DB  │
-                    │ PostgreSQL│
-                    └───────────┘
-```
-
 ## Quick Start
 
 ```bash
