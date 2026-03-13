@@ -21,6 +21,7 @@ class MemberOut(Schema):
     username: str
     first_name: str
     last_name: str
+    email: str
     role: str
 
     @staticmethod
@@ -38,6 +39,10 @@ class MemberOut(Schema):
     @staticmethod
     def resolve_last_name(obj):
         return obj.user.last_name
+
+    @staticmethod
+    def resolve_email(obj):
+        return obj.user.email
 
 
 class OrgUpdateIn(Schema):

@@ -58,6 +58,11 @@ class TestJWTOrgRoleClaims:
         assert org_roles[str(org_b.id)] == "admin"
         assert org_roles[str(org_c.id)] == "member"
 
+    def test_user_id_claim(self, client, user):
+        tokens = login(client)
+        access = AccessToken(tokens["access"])
+        assert access["user_id"] == user.id
+
     def test_user_with_no_orgs_has_empty_org_roles(self, client, user):
         tokens = login(client)
         access = AccessToken(tokens["access"])

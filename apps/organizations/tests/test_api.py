@@ -115,6 +115,12 @@ class TestListMembers:
         assert response.status_code == 200
         data = response.json()["items"]
         assert len(data) == 2
+        # Verify member response shape includes all expected fields
+        member = next(m for m in data if m["username"] == "testuser")
+        assert "membership_id" in member
+        assert "user_id" in member
+        assert "email" in member
+        assert "role" in member
 
     def test_list_members_non_member_returns_403(self, client, user):
         headers = auth_header(client, "testuser")
