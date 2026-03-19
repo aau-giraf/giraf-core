@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
 from apps.pictograms.services import PictogramService
-from core.exceptions import BusinessValidationError, GirafAIUnavailableError
+from core.exceptions import BusinessValidationError
 
 
 def _make_test_image(fmt="PNG", name="test.png") -> SimpleUploadedFile:
@@ -87,8 +87,8 @@ class TestPictogramServiceCreate:
         assert p.pk is not None
 
     @patch("apps.pictograms.services.GirafAIClient")
-    def test_create_with_generate_sound_calls_ai(self, MockClient):
-        mock_instance = MockClient.return_value
+    def test_create_with_generate_sound_calls_ai(self, mock_client):
+        mock_instance = mock_client.return_value
         mock_instance.generate_tts.return_value = b"\xff\xfb\x90\x00" * 100
 
         p = PictogramService.create_pictogram(
@@ -99,8 +99,8 @@ class TestPictogramServiceCreate:
         assert p.sound
 
     @patch("apps.pictograms.services.GirafAIClient")
-    def test_create_with_generate_image_calls_ai(self, MockClient):
-        mock_instance = MockClient.return_value
+    def test_create_with_generate_image_calls_ai(self, mock_client):
+        mock_instance = mock_client.return_value
         # Return minimal PNG bytes
         buf = io.BytesIO()
         Image.new("RGB", (10, 10)).save(buf, format="PNG")
