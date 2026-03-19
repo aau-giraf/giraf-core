@@ -18,6 +18,11 @@ class Pictogram(models.Model):
         null=True,
         blank=True,
     )
+    sound = models.FileField(
+        upload_to="pictograms/sounds/%Y/%m/%d/",
+        null=True,
+        blank=True,
+    )
     organization = models.ForeignKey(
         "organizations.Organization",
         on_delete=models.CASCADE,
@@ -40,6 +45,13 @@ class Pictogram(models.Model):
         if self.image:
             return str(self.image.url)
         return self.image_url
+
+    @property
+    def effective_sound_url(self) -> str:
+        """Return uploaded sound URL if available, otherwise empty string."""
+        if self.sound:
+            return str(self.sound.url)
+        return ""
 
     def clean(self):
         if not self.image_url and not self.image:

@@ -35,3 +35,7 @@ class DuplicateInvitationError(InvitationError, ConflictError):
 
 class InvitationSendError(InvitationError, BadRequestError):
     """Generic send failure — hides specific cause to prevent enumeration."""
+
+
+class GirafAIUnavailableError(ServiceError):
+    """The giraf-ai service is not reachable or not yet deployed."""

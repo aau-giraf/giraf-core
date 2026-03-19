@@ -66,10 +66,12 @@ apps/
   pictograms/          # Visual aids library (global or org-specific)
   invitations/         # Email-based org invitations (send, accept, reject)
 core/
+  clients/             # External service clients (giraf-ai stub)
   permissions.py       # check_role(), check_role_or_raise(), get_membership_or_none()
   exceptions.py        # Domain exception hierarchy
   jwt.py               # Custom JWT claims (org_roles)
   throttling.py        # Rate limiters (login, register, invitations)
+  validators.py        # Image and audio file validation
   schemas.py           # Shared ErrorOut schema
 ```
 
@@ -120,6 +122,7 @@ Interactive API docs are available at **http://localhost:8000/api/v1/docs** when
 | `POSTGRES_PASSWORD`      | `giraf`               | Database password                      |
 | `POSTGRES_HOST`          | `localhost`           | Database host                          |
 | `POSTGRES_PORT`          | `5432`                | Database port                          |
+| `GIRAF_AI_URL`           | (empty)               | Base URL for the giraf-ai service      |
 | `CORS_ALLOWED_ORIGINS`   | (empty)               | Comma-separated allowed origins        |
 | `ALLOWED_HOSTS`          | (empty)               | Comma-separated allowed hosts (prod)   |
 
