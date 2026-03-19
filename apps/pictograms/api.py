@@ -39,7 +39,7 @@ def list_pictograms(request, organization_id: int | None = None):
     return PictogramService.list_pictograms(organization_id)
 
 
-@router.post("/upload", response={201: PictogramOut, 403: ErrorOut})
+@router.post("/upload", response={201: PictogramOut, 403: ErrorOut, 422: ErrorOut})
 def upload_pictogram(
     request,
     image: File[UploadedFile],
@@ -61,7 +61,7 @@ def upload_pictogram(
     return 201, pictogram
 
 
-@router.patch("/{pictogram_id}", response={200: PictogramOut, 403: ErrorOut, 404: ErrorOut})
+@router.patch("/{pictogram_id}", response={200: PictogramOut, 403: ErrorOut, 404: ErrorOut, 422: ErrorOut})
 def update_pictogram(request, pictogram_id: int, payload: PictogramUpdateIn):
     """Update a pictogram. Requires admin role if org-scoped; superuser if global."""
     pictogram = PictogramService.get_pictogram(pictogram_id)
@@ -79,7 +79,7 @@ def update_pictogram(request, pictogram_id: int, payload: PictogramUpdateIn):
     return 200, pictogram
 
 
-@router.post("/{pictogram_id}/sound", response={200: PictogramOut, 403: ErrorOut, 404: ErrorOut})
+@router.post("/{pictogram_id}/sound", response={200: PictogramOut, 403: ErrorOut, 404: ErrorOut, 422: ErrorOut})
 def upload_sound(request, pictogram_id: int, sound: File[UploadedFile]):
     """Upload or replace a sound file on an existing pictogram."""
     pictogram = PictogramService.get_pictogram(pictogram_id)

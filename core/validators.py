@@ -42,10 +42,10 @@ MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
 def validate_audio_file(file) -> str:
     """Validate an uploaded audio file. Returns the detected MIME type.
 
-    Checks extension-based MIME type and file size.
+    Checks extension-based MIME type, file size, and MP3 frame header.
 
     Raises:
-        BusinessValidationError: If file type or size is invalid.
+        BusinessValidationError: If file type, size, or content is invalid.
     """
     mime_type, _ = mimetypes.guess_type(file.name)
     if mime_type not in ALLOWED_AUDIO_TYPES:
@@ -53,6 +53,17 @@ def validate_audio_file(file) -> str:
 
     if file.size > MAX_AUDIO_SIZE:
         raise BusinessValidationError("Audio file size must not exceed 10MB.")
+
+    # Verify file starts with an MP3 sync word (0xFF 0xFB/0xF3/0xF2)
+    # or an ID3 tag header ("ID3").
+    header = file.read(3)
+    file.seek(0)
+    if len(header) < 3:
+        raise BusinessValidationError("File is not a valid MP3 audio file.")
+    is_id3 = header[:3] == b"ID3"
+    is_sync = header[0] == 0xFF and (header[1] & 0xE0) == 0xE0
+    if not is_id3 and not is_sync:
+        raise BusinessValidationError("File is not a valid MP3 audio file.")
 
     return mime_type
 

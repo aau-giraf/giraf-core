@@ -36,6 +36,8 @@ class PictogramService:
             pictogram.sound.save(f"{pictogram.pk}.mp3", ContentFile(audio_bytes), save=True)
         except GirafAIUnavailableError:
             logger.warning("giraf-ai unavailable — skipping TTS for pictogram %s", pictogram.pk)
+        except Exception:
+            logger.exception("Unexpected error generating TTS for pictogram %s", pictogram.pk)
 
     @staticmethod
     def _try_generate_image(pictogram: Pictogram, prompt: str) -> None:
@@ -46,6 +48,8 @@ class PictogramService:
             pictogram.image.save(f"{pictogram.pk}.png", ContentFile(image_bytes), save=True)
         except GirafAIUnavailableError:
             logger.warning("giraf-ai unavailable — skipping image generation for pictogram %s", pictogram.pk)
+        except Exception:
+            logger.exception("Unexpected error generating image for pictogram %s", pictogram.pk)
 
     @staticmethod
     @transaction.atomic
