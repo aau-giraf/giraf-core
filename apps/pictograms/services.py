@@ -1,12 +1,22 @@
 """Business logic for pictogram operations."""
 
+import logging
+
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Q, QuerySet
 
 from apps.pictograms.models import Pictogram
-from core.exceptions import BusinessValidationError, ResourceNotFoundError
-from core.validators import validate_image_upload
+from core.clients.giraf_ai import GirafAIClient
+from core.exceptions import (
+    BusinessValidationError,
+    GirafAIUnavailableError,
+    ResourceNotFoundError,
+)
+from core.validators import validate_audio_file, validate_image_upload
+
+logger = logging.getLogger(__name__)
 
 
 class PictogramService:
@@ -18,16 +28,55 @@ class PictogramService:
             raise ResourceNotFoundError(f"Pictogram {pictogram_id} not found.")
 
     @staticmethod
-    @transaction.atomic
-    def create_pictogram(*, name: str, image_url: str, organization_id: int | None = None) -> Pictogram:
+    def _try_generate_sound(pictogram: Pictogram) -> None:
+        """Attempt to generate TTS sound for a pictogram. Fails gracefully."""
         try:
-            return Pictogram.objects.create(
+            client = GirafAIClient()
+            audio_bytes = client.generate_tts(pictogram.name)
+            pictogram.sound.save(f"{pictogram.pk}.mp3", ContentFile(audio_bytes), save=True)
+        except GirafAIUnavailableError:
+            logger.warning("giraf-ai unavailable — skipping TTS for pictogram %s", pictogram.pk)
+        except Exception:
+            logger.exception("Unexpected error generating TTS for pictogram %s", pictogram.pk)
+
+    @staticmethod
+    def _try_generate_image(pictogram: Pictogram, prompt: str) -> None:
+        """Attempt to generate an image for a pictogram. Fails gracefully."""
+        try:
+            client = GirafAIClient()
+            image_bytes = client.generate_image(prompt)
+            pictogram.image.save(f"{pictogram.pk}.png", ContentFile(image_bytes), save=True)
+        except GirafAIUnavailableError:
+            logger.warning("giraf-ai unavailable — skipping image generation for pictogram %s", pictogram.pk)
+        except Exception:
+            logger.exception("Unexpected error generating image for pictogram %s", pictogram.pk)
+
+    @staticmethod
+    @transaction.atomic
+    def create_pictogram(
+        *,
+        name: str,
+        image_url: str = "",
+        organization_id: int | None = None,
+        generate_image: bool = False,
+        generate_sound: bool = True,
+    ) -> Pictogram:
+        try:
+            pictogram = Pictogram.objects.create(
                 name=name,
                 image_url=image_url,
                 organization_id=organization_id,
             )
         except DjangoValidationError as e:
             raise BusinessValidationError(" ".join(e.messages))
+
+        if generate_image:
+            PictogramService._try_generate_image(pictogram, name)
+
+        if generate_sound:
+            PictogramService._try_generate_sound(pictogram)
+
+        return pictogram
 
     @staticmethod
     def list_pictograms(organization_id: int | None = None) -> QuerySet[Pictogram]:
@@ -41,19 +90,67 @@ class PictogramService:
 
     @staticmethod
     @transaction.atomic
-    def upload_pictogram(*, name: str, image, organization_id: int | None = None) -> Pictogram:
-        """Upload a pictogram image with validation.
+    def upload_pictogram(
+        *,
+        name: str,
+        image,
+        organization_id: int | None = None,
+        sound=None,
+        generate_sound: bool = True,
+    ) -> Pictogram:
+        """Upload a pictogram with an image file and optional sound file.
 
         Raises:
             BusinessValidationError: If file type or size is invalid.
         """
         validate_image_upload(image)
+        if sound is not None:
+            validate_audio_file(sound)
 
-        return Pictogram.objects.create(
+        pictogram = Pictogram.objects.create(
             name=name,
             image=image,
+            sound=sound,
             organization_id=organization_id,
         )
+
+        if sound is None and generate_sound:
+            PictogramService._try_generate_sound(pictogram)
+
+        return pictogram
+
+    @staticmethod
+    @transaction.atomic
+    def update_pictogram(
+        *,
+        pictogram_id: int,
+        name: str | None = None,
+        image_url: str | None = None,
+        generate_image: bool = False,
+        regenerate_sound: bool = False,
+        sound=None,
+    ) -> Pictogram:
+        """Update a pictogram's fields. Supports name, image_url, sound upload, and AI regeneration."""
+        pictogram = PictogramService._get_pictogram_or_raise(pictogram_id)
+
+        if name is not None:
+            pictogram.name = name
+        if image_url is not None:
+            pictogram.image_url = image_url
+
+        if sound is not None:
+            validate_audio_file(sound)
+            pictogram.sound = sound
+
+        pictogram.save()
+
+        if generate_image:
+            PictogramService._try_generate_image(pictogram, pictogram.name)
+
+        if regenerate_sound and sound is None:
+            PictogramService._try_generate_sound(pictogram)
+
+        return pictogram
 
     @staticmethod
     @transaction.atomic
