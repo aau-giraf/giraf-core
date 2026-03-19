@@ -75,6 +75,25 @@ core/
 
 ---
 
+## Admin UI
+
+Django Admin is available at `/admin/` in all environments — it serves as the central admin interface for the GIRAF platform. Client apps (Flutter, Expo, etc.) should not build their own admin systems.
+
+**Access requirements:**
+- Users must have `is_staff=True` to log in
+- Create a staff user with `uv run python manage.py createsuperuser`
+
+**What you can manage:**
+- Users — create, edit, toggle staff/active status
+- Organizations — full CRUD with inline membership editing
+- Memberships — assign users to organizations with roles
+- Citizens, Grades, Pictograms — full CRUD scoped to organizations
+- Invitations — view status, filter by status/organization
+
+Admin uses session-based auth (separate from the JWT API auth), and Django logs all admin actions for auditing.
+
+---
+
 ## API Reference
 
 Interactive API docs are available at **http://localhost:8000/api/v1/docs** when running locally. All endpoints are prefixed with `/api/v1`.

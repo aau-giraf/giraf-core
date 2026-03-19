@@ -11,11 +11,12 @@ def client():
 
 @pytest.mark.django_db
 class TestURLConfiguration:
-    def test_admin_not_accessible_when_debug_false(self, client, settings):
-        """Admin panel should not be accessible in production (DEBUG=False)."""
+    def test_admin_accessible_in_all_environments(self, client, settings):
+        """Admin panel should be accessible regardless of DEBUG setting."""
         settings.DEBUG = False
         response = client.get("/admin/")
-        assert response.status_code == 404
+        # Redirects to login page (302), not 404
+        assert response.status_code == 302
 
     def test_api_health_accessible(self, client):
         """Health check endpoint should always be accessible."""
