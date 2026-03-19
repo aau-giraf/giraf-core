@@ -45,7 +45,7 @@ def upload_pictogram(
     image: File[UploadedFile],
     name: Form[str],
     organization_id: Form[int | None] = None,
-    sound: File[UploadedFile] = None,
+    sound: File[UploadedFile] | None = None,
     generate_sound: Form[bool] = True,
 ):
     """Upload a pictogram with an image file and optional sound file."""
