@@ -16,7 +16,7 @@ dependencies = [
     "pydantic[email]>=2.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.0",
     "pytest-django>=4.9",

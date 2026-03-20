@@ -72,7 +72,8 @@ class GirafAIClient:
 
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
-                return json.loads(resp.read())
+                result: dict = json.loads(resp.read())
+                return result
         except urllib.error.URLError as exc:
             raise GirafAIUnavailableError(
                 f"giraf-ai service is unreachable: {exc}"
