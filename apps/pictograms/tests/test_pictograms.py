@@ -294,27 +294,29 @@ class TestPictogramUpload:
 
 @pytest.mark.django_db
 class TestPictogramPermissions:
-    def test_member_cannot_create_org_pictogram(self, client, org, member):
+    def test_member_can_create_org_pictogram(self, client, org, member):
         headers = auth_header(client, "member")
         response = client.post(
             "/api/v1/pictograms",
             data={
-                "name": "Unauthorized",
+                "name": "Member Created",
                 "image_url": "https://example.com/pic.png",
                 "organization_id": org.id,
+                "generate_sound": False,
             },
             content_type="application/json",
             **headers,
         )
-        assert response.status_code == 403
+        assert response.status_code == 201
 
-    def test_member_cannot_delete_org_pictogram(self, client, org, member):
+    def test_member_can_delete_org_pictogram(self, client, org, member):
         from apps.pictograms.models import Pictogram
 
         p = Pictogram.objects.create(name="OrgPic", image_url="https://example.com/p.png", organization=org)
         headers = auth_header(client, "member")
         response = client.delete(f"/api/v1/pictograms/{p.id}", **headers)
-        assert response.status_code == 403
+        assert response.status_code == 204
+        assert not Pictogram.objects.filter(id=p.id).exists()
 
     def test_non_member_cannot_create_pictogram_in_other_org(self, client, org, non_member):
         headers = auth_header(client, "outsider")

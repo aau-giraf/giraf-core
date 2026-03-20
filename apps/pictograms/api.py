@@ -15,9 +15,9 @@ router = Router(tags=["pictograms"])
 
 @router.post("", response={201: PictogramOut, 403: ErrorOut, 422: ErrorOut})
 def create_pictogram(request, payload: PictogramCreateIn):
-    """Create a pictogram. Org-scoped requires admin role; global requires superuser."""
+    """Create a pictogram. Org-scoped requires member role; global requires superuser."""
     check_org_or_superuser(
-        request.auth, payload.organization_id, min_role=OrgRole.ADMIN, action="create global pictograms"
+        request.auth, payload.organization_id, min_role=OrgRole.MEMBER, action="create global pictograms"
     )
 
     pictogram = PictogramService.create_pictogram(
@@ -49,7 +49,7 @@ def upload_pictogram(
     generate_sound: Form[bool] = True,
 ):
     """Upload a pictogram with an image file and optional sound file."""
-    check_org_or_superuser(request.auth, organization_id, min_role=OrgRole.ADMIN, action="create global pictograms")
+    check_org_or_superuser(request.auth, organization_id, min_role=OrgRole.MEMBER, action="create global pictograms")
 
     pictogram = PictogramService.upload_pictogram(
         name=name,
@@ -63,10 +63,10 @@ def upload_pictogram(
 
 @router.patch("/{pictogram_id}", response={200: PictogramOut, 403: ErrorOut, 404: ErrorOut, 422: ErrorOut})
 def update_pictogram(request, pictogram_id: int, payload: PictogramUpdateIn):
-    """Update a pictogram. Requires admin role if org-scoped; superuser if global."""
+    """Update a pictogram. Requires member role if org-scoped; superuser if global."""
     pictogram = PictogramService.get_pictogram(pictogram_id)
     check_org_or_superuser(
-        request.auth, pictogram.organization_id, min_role=OrgRole.ADMIN, action="update global pictograms"
+        request.auth, pictogram.organization_id, min_role=OrgRole.MEMBER, action="update global pictograms"
     )
 
     pictogram = PictogramService.update_pictogram(
@@ -84,7 +84,7 @@ def upload_sound(request, pictogram_id: int, sound: File[UploadedFile]):
     """Upload or replace a sound file on an existing pictogram."""
     pictogram = PictogramService.get_pictogram(pictogram_id)
     check_org_or_superuser(
-        request.auth, pictogram.organization_id, min_role=OrgRole.ADMIN, action="update global pictograms"
+        request.auth, pictogram.organization_id, min_role=OrgRole.MEMBER, action="update global pictograms"
     )
 
     pictogram = PictogramService.update_pictogram(
@@ -103,10 +103,10 @@ def get_pictogram(request, pictogram_id: int):
 
 @router.delete("/{pictogram_id}", response={204: None, 403: ErrorOut, 404: ErrorOut})
 def delete_pictogram(request, pictogram_id: int):
-    """Delete a pictogram. Requires admin role if org-scoped; superuser if global."""
+    """Delete a pictogram. Requires member role if org-scoped; superuser if global."""
     pictogram = PictogramService.get_pictogram(pictogram_id)
     check_org_or_superuser(
-        request.auth, pictogram.organization_id, min_role=OrgRole.ADMIN, action="delete global pictograms"
+        request.auth, pictogram.organization_id, min_role=OrgRole.MEMBER, action="delete global pictograms"
     )
 
     PictogramService.delete_pictogram(pictogram_id=pictogram_id)
