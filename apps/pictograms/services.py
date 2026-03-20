@@ -61,17 +61,35 @@ class PictogramService:
         generate_image: bool = False,
         generate_sound: bool = True,
     ) -> Pictogram:
-        try:
-            pictogram = Pictogram.objects.create(
+        if generate_image and not image_url:
+            # Skip model validation — image will be populated by AI generation.
+            pictogram = Pictogram(
                 name=name,
                 image_url=image_url,
                 organization_id=organization_id,
             )
-        except DjangoValidationError as e:
-            raise BusinessValidationError(" ".join(e.messages))
+            super(Pictogram, pictogram).save()
 
-        if generate_image:
             PictogramService._try_generate_image(pictogram, name)
+
+            # If AI generation failed, the pictogram has no image — validate now.
+            if not pictogram.image and not pictogram.image_url:
+                pictogram.delete()
+                raise BusinessValidationError(
+                    "Image generation failed and no image_url was provided."
+                )
+        else:
+            try:
+                pictogram = Pictogram.objects.create(
+                    name=name,
+                    image_url=image_url,
+                    organization_id=organization_id,
+                )
+            except DjangoValidationError as e:
+                raise BusinessValidationError(" ".join(e.messages))
+
+            if generate_image:
+                PictogramService._try_generate_image(pictogram, name)
 
         if generate_sound:
             PictogramService._try_generate_sound(pictogram)
