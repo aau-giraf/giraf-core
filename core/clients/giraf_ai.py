@@ -13,6 +13,34 @@ from core.exceptions import GirafAIUnavailableError
 logger = logging.getLogger(__name__)
 
 
+def _get_service_token() -> str:
+    """Create a minimal JWT for service-to-service auth using the shared secret."""
+    import hmac
+    import hashlib
+    import time
+
+    ninja_jwt = getattr(settings, "NINJA_JWT", {})
+    secret = ninja_jwt.get("SIGNING_KEY", getattr(settings, "SECRET_KEY", ""))
+
+    header = base64.urlsafe_b64encode(json.dumps(
+        {"alg": "HS256", "typ": "JWT"}
+    ).encode()).rstrip(b"=").decode()
+
+    payload = base64.urlsafe_b64encode(json.dumps({
+        "sub": "giraf-core-service",
+        "org_roles": {},
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 300,
+    }).encode()).rstrip(b"=").decode()
+
+    signing_input = f"{header}.{payload}"
+    signature = base64.urlsafe_b64encode(
+        hmac.new(secret.encode(), signing_input.encode(), hashlib.sha256).digest()
+    ).rstrip(b"=").decode()
+
+    return f"{header}.{payload}.{signature}"
+
+
 class GirafAIClient:
     """Client for the giraf-ai image/TTS generation service.
 
@@ -31,10 +59,14 @@ class GirafAIClient:
 
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode()
+        token = _get_service_token()
         req = urllib.request.Request(
             url,
             data=data,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {token}",
+            },
             method="POST",
         )
 
