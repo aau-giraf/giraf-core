@@ -223,6 +223,31 @@ class TestPictogramSoundUpload:
         assert response.status_code == 200
         assert response.json()["sound_url"] != ""
 
+    def test_member_can_upload_pictogram(self, client, org, member):
+        headers = auth_header(client, "member")
+        image = _make_test_image()
+        response = client.post(
+            "/api/v1/pictograms/upload",
+            data={"name": "MemberUpload", "image": image, "organization_id": org.id, "generate_sound": False},
+            **headers,
+        )
+        assert response.status_code == 201
+        assert response.json()["name"] == "MemberUpload"
+
+    def test_member_can_upload_sound(self, client, org, member):
+        from apps.pictograms.models import Pictogram
+
+        p = Pictogram.objects.create(name="NeedsSound", image_url="https://example.com/pic.png", organization=org)
+        headers = auth_header(client, "member")
+        sound = _make_test_audio()
+        response = client.post(
+            f"/api/v1/pictograms/{p.id}/sound",
+            data={"sound": sound},
+            **headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["sound_url"] != ""
+
 
 @pytest.mark.django_db
 class TestPictogramValidation:
