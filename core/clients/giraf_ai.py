@@ -3,8 +3,8 @@
 import base64
 import json
 import logging
-import urllib.request
 import urllib.error
+import urllib.request
 
 from django.conf import settings
 
@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 def _get_service_token() -> str:
     """Create a minimal JWT for service-to-service auth using the shared secret."""
-    import hmac
     import hashlib
+    import hmac
     import time
 
     ninja_jwt = getattr(settings, "NINJA_JWT", {})
@@ -72,7 +72,8 @@ class GirafAIClient:
 
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
-                return json.loads(resp.read())
+                result: dict = json.loads(resp.read())
+                return result
         except urllib.error.URLError as exc:
             raise GirafAIUnavailableError(
                 f"giraf-ai service is unreachable: {exc}"
