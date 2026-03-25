@@ -163,3 +163,48 @@ class TestPictogramServiceErrors:
         names = [p.name for p in results]
         assert "Global" in names
         assert "OrgOnly" not in names
+
+
+@pytest.mark.django_db
+class TestPictogramServiceSearch:
+    def test_search_filters_by_name(self):
+        PictogramService.create_pictogram(name="Cat", image_url="http://c.png", generate_sound=False)
+        PictogramService.create_pictogram(name="Dog", image_url="http://d.png", generate_sound=False)
+        PictogramService.create_pictogram(name="Caterpillar", image_url="http://cp.png", generate_sound=False)
+
+        results = list(PictogramService.list_pictograms(search="cat"))
+        names = [p.name for p in results]
+        assert "Cat" in names
+        assert "Caterpillar" in names
+        assert "Dog" not in names
+
+    def test_search_is_case_insensitive(self):
+        PictogramService.create_pictogram(name="cat", image_url="http://c.png", generate_sound=False)
+
+        results = list(PictogramService.list_pictograms(search="CAT"))
+        assert len(results) == 1
+        assert results[0].name == "cat"
+
+    def test_search_no_match_returns_empty(self):
+        PictogramService.create_pictogram(name="Cat", image_url="http://c.png", generate_sound=False)
+
+        results = list(PictogramService.list_pictograms(search="xyz"))
+        assert len(results) == 0
+
+    def test_search_with_org_filters_both(self):
+        from apps.organizations.models import Organization
+
+        org = Organization.objects.create(name="Test School")
+        PictogramService.create_pictogram(name="Cat Global", image_url="http://cg.png", generate_sound=False)
+        PictogramService.create_pictogram(
+            name="Cat Org", image_url="http://co.png", organization_id=org.id, generate_sound=False
+        )
+        PictogramService.create_pictogram(
+            name="Dog Org", image_url="http://do.png", organization_id=org.id, generate_sound=False
+        )
+
+        results = list(PictogramService.list_pictograms(organization_id=org.id, search="cat"))
+        names = [p.name for p in results]
+        assert "Cat Global" in names
+        assert "Cat Org" in names
+        assert "Dog Org" not in names
