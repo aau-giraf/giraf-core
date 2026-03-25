@@ -32,11 +32,11 @@ def create_pictogram(request, payload: PictogramCreateIn):
 
 @router.get("", response=list[PictogramOut])
 @paginate(LimitOffsetPagination)
-def list_pictograms(request, organization_id: int | None = None):
-    """List pictograms. Returns global + org-specific if org_id provided (requires membership)."""
+def list_pictograms(request, organization_id: int | None = None, search: str | None = None):
+    """List pictograms. Optionally filter by search term and/or organization."""
     if organization_id:
         check_role_or_raise(request.auth, organization_id, min_role=OrgRole.MEMBER)
-    return PictogramService.list_pictograms(organization_id)
+    return PictogramService.list_pictograms(organization_id, search=search)
 
 
 @router.post("/upload", response={201: PictogramOut, 403: ErrorOut, 422: ErrorOut})

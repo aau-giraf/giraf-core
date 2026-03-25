@@ -97,10 +97,14 @@ class PictogramService:
         return pictogram
 
     @staticmethod
-    def list_pictograms(organization_id: int | None = None) -> QuerySet[Pictogram]:
+    def list_pictograms(organization_id: int | None = None, search: str | None = None) -> QuerySet[Pictogram]:
         if organization_id:
-            return Pictogram.objects.filter(Q(organization_id=organization_id) | Q(organization__isnull=True))
-        return Pictogram.objects.filter(organization__isnull=True)
+            qs = Pictogram.objects.filter(Q(organization_id=organization_id) | Q(organization__isnull=True))
+        else:
+            qs = Pictogram.objects.filter(organization__isnull=True)
+        if search:
+            qs = qs.filter(name__icontains=search)
+        return qs
 
     @staticmethod
     def get_pictogram(pictogram_id: int) -> Pictogram:

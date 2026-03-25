@@ -71,6 +71,34 @@ class TestPictogramAPI:
         assert "Global" in names
         assert "Org Specific" in names
 
+    def test_list_pictograms_search_filters_results(self, client, org, member):
+        from apps.pictograms.models import Pictogram
+
+        Pictogram.objects.create(name="Cat", image_url="https://c.com/c.png", organization=org)
+        Pictogram.objects.create(name="Dog", image_url="https://d.com/d.png", organization=org)
+        Pictogram.objects.create(name="Caterpillar", image_url="https://cp.com/cp.png", organization=org)
+
+        headers = auth_header_for_user(member)
+        response = client.get(f"/api/v1/pictograms?organization_id={org.id}&search=cat", **headers)
+        assert response.status_code == 200
+        names = [p["name"] for p in response.json()["items"]]
+        assert "Cat" in names
+        assert "Caterpillar" in names
+        assert "Dog" not in names
+
+    def test_list_pictograms_empty_search_returns_all(self, client, org, member):
+        from apps.pictograms.models import Pictogram
+
+        Pictogram.objects.create(name="Cat", image_url="https://c.com/c.png", organization=org)
+        Pictogram.objects.create(name="Dog", image_url="https://d.com/d.png", organization=org)
+
+        headers = auth_header_for_user(member)
+        response = client.get(f"/api/v1/pictograms?organization_id={org.id}&search=", **headers)
+        assert response.status_code == 200
+        names = [p["name"] for p in response.json()["items"]]
+        assert "Cat" in names
+        assert "Dog" in names
+
     def test_get_pictogram(self, client, org, member):
         from apps.pictograms.models import Pictogram
 
