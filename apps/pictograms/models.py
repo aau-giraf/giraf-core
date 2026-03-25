@@ -1,7 +1,7 @@
 """Pictogram model.
 
 Pictograms are visual aids used for communication with autistic children.
-They can belong to an organization (custom) or be global (organization=None).
+They can be global (organization=None), org-scoped, or citizen-scoped.
 """
 
 from django.core.exceptions import ValidationError
