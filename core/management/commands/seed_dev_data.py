@@ -1,8 +1,12 @@
 """Seed the database with sample data for local development."""
 
+import io
+
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from PIL import Image
 
 from apps.citizens.models import Citizen
 from apps.grades.models import Grade
@@ -55,18 +59,18 @@ class Command(BaseCommand):
 
         # ── Pictograms ────────────────────────────────────────
         # Global
-        self._create_pictogram("Happy", "https://img.giraf.dev/happy.png")
-        self._create_pictogram("Sad", "https://img.giraf.dev/sad.png")
-        self._create_pictogram("Eat", "https://img.giraf.dev/eat.png")
+        self._create_pictogram("Happy", "#FFD700", organization=None)
+        self._create_pictogram("Sad", "#4169E1", organization=None)
+        self._create_pictogram("Eat", "#32CD32", organization=None)
 
         # Org-scoped
-        self._create_pictogram("School Bus", "https://img.giraf.dev/bus.png", organization=sunflower)
-        self._create_pictogram("Lunchroom", "https://img.giraf.dev/lunch.png", organization=sunflower)
-        self._create_pictogram("Gymnasium", "https://img.giraf.dev/gym.png", organization=oak)
+        self._create_pictogram("School Bus", "#FF8C00", organization=sunflower)
+        self._create_pictogram("Lunchroom", "#8B4513", organization=sunflower)
+        self._create_pictogram("Gymnasium", "#DC143C", organization=oak)
 
         # Citizen-scoped
-        self._create_pictogram("Emil's Zoo Photo", "https://img.giraf.dev/emil-zoo.png", organization=sunflower, citizen=emil)
-        self._create_pictogram("Ida's Cat", "https://img.giraf.dev/ida-cat.png", organization=oak, citizen=ida)
+        self._create_pictogram("Emil's Zoo Photo", "#9370DB", organization=sunflower, citizen=emil)
+        self._create_pictogram("Ida's Cat", "#FF69B4", organization=oak, citizen=ida)
 
         # ── Invitations ───────────────────────────────────────
         Invitation.objects.get_or_create(
@@ -134,20 +138,41 @@ class Command(BaseCommand):
         self.stdout.write(f"  {verb} grade: {name} ({len(citizens)} citizens)")
         return grade
 
-    def _create_pictogram(self, name, image_url, organization=None, citizen=None):
-        defaults = {"image_url": image_url}
-        if citizen:
-            defaults["citizen"] = citizen
-        pictogram, created = Pictogram.objects.get_or_create(
+    def _create_pictogram(self, name, color, organization=None, citizen=None):
+        existing = Pictogram.objects.filter(name=name, organization=organization).first()
+        if existing:
+            scope = self._pictogram_scope_label(organization, citizen)
+            self.stdout.write(f"  Exists pictogram: {name} [{scope}]")
+            return existing
+
+        image_file = self._make_placeholder_image(name, color)
+        pictogram = Pictogram(
             name=name,
             organization=organization,
-            defaults=defaults,
+            citizen=citizen,
         )
-        verb = "Created" if created else "Exists"
-        scope = "global"
-        if citizen:
-            scope = f"citizen ({citizen})"
-        elif organization:
-            scope = f"org ({organization.name})"
-        self.stdout.write(f"  {verb} pictogram: {name} [{scope}]")
+        pictogram.image.save(f"{name.lower().replace(' ', '_')}.png", image_file, save=False)
+        # Skip full_clean since we're setting the image field directly
+        super(Pictogram, pictogram).save()
+
+        scope = self._pictogram_scope_label(organization, citizen)
+        self.stdout.write(f"  Created pictogram: {name} [{scope}]")
         return pictogram
+
+    @staticmethod
+    def _pictogram_scope_label(organization, citizen):
+        if citizen:
+            return f"citizen ({citizen})"
+        if organization:
+            return f"org ({organization.name})"
+        return "global"
+
+    @staticmethod
+    def _make_placeholder_image(label, color):
+        """Generate a simple colored 200x200 PNG placeholder."""
+        hex_color = color.lstrip("#")
+        rgb = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+        img = Image.new("RGB", (200, 200), rgb)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return ContentFile(buf.getvalue())
