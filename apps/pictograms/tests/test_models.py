@@ -75,6 +75,7 @@ class TestPictogramValidation:
         assert p.pk is not None
 
 
+
 @pytest.mark.django_db
 class TestPictogramCitizenScope:
     def test_create_citizen_scoped_pictogram(self):
