@@ -30,6 +30,13 @@ class Pictogram(models.Model):
         null=True,
         blank=True,
     )
+    citizen = models.ForeignKey(
+        "citizens.Citizen",
+        on_delete=models.CASCADE,
+        related_name="pictograms",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -56,6 +63,17 @@ class Pictogram(models.Model):
     def clean(self):
         if not self.image_url and not self.image:
             raise ValidationError("A pictogram must have either an image_url or an uploaded image.")
+        if self.citizen_id and not self.organization_id:
+            raise ValidationError("A citizen-scoped pictogram must also have an organization.")
+        if self.citizen_id and self.organization_id:
+            from apps.citizens.models import Citizen
+
+            try:
+                citizen = Citizen.objects.get(pk=self.citizen_id)
+            except Citizen.DoesNotExist:
+                raise ValidationError("Citizen does not exist.")
+            if citizen.organization_id != self.organization_id:
+                raise ValidationError("Citizen must belong to the pictogram's organization.")
 
     def save(self, *args, **kwargs):
         self.full_clean()

@@ -208,3 +208,155 @@ class TestPictogramServiceSearch:
         assert "Cat Global" in names
         assert "Cat Org" in names
         assert "Dog Org" not in names
+
+
+@pytest.mark.django_db
+class TestPictogramServiceCitizenScope:
+    def _make_org_and_citizen(self):
+        from apps.citizens.models import Citizen
+        from apps.organizations.models import Organization
+
+        org = Organization.objects.create(name="Test School")
+        citizen = Citizen.objects.create(first_name="Alice", last_name="Test", organization=org)
+        return org, citizen
+
+    def test_create_citizen_scoped_pictogram(self):
+        org, citizen = self._make_org_and_citizen()
+        p = PictogramService.create_pictogram(
+            name="Alice Zoo",
+            image_url="http://zoo.png",
+            organization_id=org.id,
+            citizen_id=citizen.id,
+            generate_sound=False,
+        )
+        assert p.pk is not None
+        assert p.citizen_id == citizen.id
+        assert p.organization_id == org.id
+
+    def test_create_citizen_scoped_requires_org(self):
+        org, citizen = self._make_org_and_citizen()
+        with pytest.raises(BusinessValidationError, match="require"):
+            PictogramService.create_pictogram(
+                name="Bad",
+                image_url="http://pic.png",
+                citizen_id=citizen.id,
+                generate_sound=False,
+            )
+
+    def test_create_citizen_scoped_wrong_org(self):
+        from apps.organizations.models import Organization
+
+        org_a, citizen = self._make_org_and_citizen()
+        org_b = Organization.objects.create(name="Other School")
+        with pytest.raises(BusinessValidationError, match="does not belong"):
+            PictogramService.create_pictogram(
+                name="Wrong",
+                image_url="http://pic.png",
+                organization_id=org_b.id,
+                citizen_id=citizen.id,
+                generate_sound=False,
+            )
+
+    def test_create_citizen_not_found(self):
+        from core.exceptions import ResourceNotFoundError
+
+        with pytest.raises(ResourceNotFoundError):
+            PictogramService.create_pictogram(
+                name="Ghost",
+                image_url="http://pic.png",
+                organization_id=1,
+                citizen_id=99999,
+                generate_sound=False,
+            )
+
+    def test_upload_citizen_scoped(self):
+        org, citizen = self._make_org_and_citizen()
+        image = make_test_image()
+        p = PictogramService.upload_pictogram(
+            name="Upload",
+            image=image,
+            organization_id=org.id,
+            citizen_id=citizen.id,
+            generate_sound=False,
+        )
+        assert p.pk is not None
+        assert p.citizen_id == citizen.id
+
+    def test_list_for_citizen_returns_three_tiers(self):
+        org, citizen = self._make_org_and_citizen()
+        PictogramService.create_pictogram(name="Global", image_url="http://g.png", generate_sound=False)
+        PictogramService.create_pictogram(
+            name="Org", image_url="http://o.png", organization_id=org.id, generate_sound=False
+        )
+        PictogramService.create_pictogram(
+            name="Citizen",
+            image_url="http://c.png",
+            organization_id=org.id,
+            citizen_id=citizen.id,
+            generate_sound=False,
+        )
+
+        results = list(PictogramService.list_pictograms(organization_id=org.id, citizen_id=citizen.id))
+        names = [p.name for p in results]
+        assert "Global" in names
+        assert "Org" in names
+        assert "Citizen" in names
+
+    def test_list_for_citizen_excludes_other_citizen(self):
+        from apps.citizens.models import Citizen
+
+        org, alice = self._make_org_and_citizen()
+        bob = Citizen.objects.create(first_name="Bob", last_name="Test", organization=org)
+        PictogramService.create_pictogram(
+            name="Alice Pic",
+            image_url="http://a.png",
+            organization_id=org.id,
+            citizen_id=alice.id,
+            generate_sound=False,
+        )
+        PictogramService.create_pictogram(
+            name="Bob Pic",
+            image_url="http://b.png",
+            organization_id=org.id,
+            citizen_id=bob.id,
+            generate_sound=False,
+        )
+
+        results = list(PictogramService.list_pictograms(organization_id=org.id, citizen_id=alice.id))
+        names = [p.name for p in results]
+        assert "Alice Pic" in names
+        assert "Bob Pic" not in names
+
+    def test_list_for_org_excludes_citizen_scoped(self):
+        org, citizen = self._make_org_and_citizen()
+        PictogramService.create_pictogram(
+            name="Org Pic", image_url="http://o.png", organization_id=org.id, generate_sound=False
+        )
+        PictogramService.create_pictogram(
+            name="Citizen Pic",
+            image_url="http://c.png",
+            organization_id=org.id,
+            citizen_id=citizen.id,
+            generate_sound=False,
+        )
+
+        results = list(PictogramService.list_pictograms(organization_id=org.id))
+        names = [p.name for p in results]
+        assert "Org Pic" in names
+        assert "Citizen Pic" not in names
+
+    def test_list_global_excludes_citizen_scoped(self):
+        org, citizen = self._make_org_and_citizen()
+        PictogramService.create_pictogram(name="Global", image_url="http://g.png", generate_sound=False)
+        PictogramService.create_pictogram(
+            name="Citizen Pic",
+            image_url="http://c.png",
+            organization_id=org.id,
+            citizen_id=citizen.id,
+            generate_sound=False,
+        )
+
+        results = list(PictogramService.list_pictograms())
+        names = [p.name for p in results]
+        assert "Global" in names
+        assert "Citizen Pic" not in names

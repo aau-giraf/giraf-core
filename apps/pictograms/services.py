@@ -40,6 +40,17 @@ class PictogramService:
             logger.exception("Unexpected error generating TTS for pictogram %s", pictogram.pk)
 
     @staticmethod
+    def _validate_citizen_org(citizen_id: int, organization_id: int | None) -> None:
+        """Validate that a citizen exists and belongs to the specified organization."""
+        from apps.citizens.services import CitizenService
+
+        citizen = CitizenService.get_citizen(citizen_id)  # raises ResourceNotFoundError
+        if not organization_id:
+            raise BusinessValidationError("Citizen-scoped pictograms require an organization.")
+        if citizen.organization_id != organization_id:
+            raise BusinessValidationError("Citizen does not belong to the specified organization.")
+
+    @staticmethod
     def _try_generate_image(pictogram: Pictogram, prompt: str) -> None:
         """Attempt to generate an image for a pictogram. Fails gracefully."""
         try:
@@ -58,15 +69,20 @@ class PictogramService:
         name: str,
         image_url: str = "",
         organization_id: int | None = None,
+        citizen_id: int | None = None,
         generate_image: bool = False,
         generate_sound: bool = True,
     ) -> Pictogram:
+        if citizen_id:
+            PictogramService._validate_citizen_org(citizen_id, organization_id)
+
         if generate_image and not image_url:
             # Skip model validation — image will be populated by AI generation.
             pictogram = Pictogram(
                 name=name,
                 image_url=image_url,
                 organization_id=organization_id,
+                citizen_id=citizen_id,
             )
             super(Pictogram, pictogram).save()
 
@@ -84,6 +100,7 @@ class PictogramService:
                     name=name,
                     image_url=image_url,
                     organization_id=organization_id,
+                    citizen_id=citizen_id,
                 )
             except DjangoValidationError as e:
                 raise BusinessValidationError(" ".join(e.messages))
@@ -97,11 +114,26 @@ class PictogramService:
         return pictogram
 
     @staticmethod
-    def list_pictograms(organization_id: int | None = None, search: str | None = None) -> QuerySet[Pictogram]:
-        if organization_id:
-            qs = Pictogram.objects.filter(Q(organization_id=organization_id) | Q(organization__isnull=True))
+    def list_pictograms(
+        organization_id: int | None = None,
+        citizen_id: int | None = None,
+        search: str | None = None,
+    ) -> QuerySet[Pictogram]:
+        if citizen_id:
+            # Three-tier: global + org + citizen
+            qs = Pictogram.objects.filter(
+                Q(organization__isnull=True, citizen__isnull=True)
+                | Q(organization_id=organization_id, citizen__isnull=True)
+                | Q(organization_id=organization_id, citizen_id=citizen_id)
+            )
+        elif organization_id:
+            # Two-tier: global + org (exclude citizen-scoped)
+            qs = Pictogram.objects.filter(
+                Q(organization_id=organization_id, citizen__isnull=True)
+                | Q(organization__isnull=True, citizen__isnull=True)
+            )
         else:
-            qs = Pictogram.objects.filter(organization__isnull=True)
+            qs = Pictogram.objects.filter(organization__isnull=True, citizen__isnull=True)
         if search:
             qs = qs.filter(name__icontains=search)
         return qs
@@ -117,6 +149,7 @@ class PictogramService:
         name: str,
         image,
         organization_id: int | None = None,
+        citizen_id: int | None = None,
         sound=None,
         generate_sound: bool = True,
     ) -> Pictogram:
@@ -125,6 +158,9 @@ class PictogramService:
         Raises:
             BusinessValidationError: If file type or size is invalid.
         """
+        if citizen_id:
+            PictogramService._validate_citizen_org(citizen_id, organization_id)
+
         validate_image_upload(image)
         if sound is not None:
             validate_audio_file(sound)
@@ -134,6 +170,7 @@ class PictogramService:
             image=image,
             sound=sound,
             organization_id=organization_id,
+            citizen_id=citizen_id,
         )
 
         if sound is None and generate_sound:
