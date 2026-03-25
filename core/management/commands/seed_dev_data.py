@@ -53,9 +53,9 @@ class Command(BaseCommand):
         alma = self._create_citizen("Alma", "Christiansen", oak)
 
         # ── Grades ─────────────────────────────────────────────
-        grade_1a = self._create_grade("1A", sunflower, [emil, freja])
-        grade_2b = self._create_grade("2B", sunflower, [oscar])
-        grade_3c = self._create_grade("3C", oak, [ida, noah, alma])
+        self._create_grade("1A", sunflower, [emil, freja])
+        self._create_grade("2B", sunflower, [oscar])
+        self._create_grade("3C", oak, [ida, noah, alma])
 
         # ── Pictograms ────────────────────────────────────────
         # Global
@@ -75,9 +75,8 @@ class Command(BaseCommand):
         # ── Invitations ───────────────────────────────────────
         Invitation.objects.get_or_create(
             organization=sunflower,
-            sender=anna,
             receiver=mikkel,
-            defaults={"status": "pending"},
+            defaults={"sender": anna, "status": "pending"},
         )
 
         # ── Summary ───────────────────────────────────────────
@@ -139,21 +138,20 @@ class Command(BaseCommand):
         return grade
 
     def _create_pictogram(self, name, color, organization=None, citizen=None):
-        existing = Pictogram.objects.filter(name=name, organization=organization).first()
+        existing = Pictogram.objects.filter(name=name, organization=organization, citizen=citizen).first()
         if existing:
             scope = self._pictogram_scope_label(organization, citizen)
             self.stdout.write(f"  Exists pictogram: {name} [{scope}]")
             return existing
 
-        image_file = self._make_placeholder_image(name, color)
+        image_file = self._make_placeholder_image(color)
         pictogram = Pictogram(
             name=name,
             organization=organization,
             citizen=citizen,
         )
         pictogram.image.save(f"{name.lower().replace(' ', '_')}.png", image_file, save=False)
-        # Skip full_clean since we're setting the image field directly
-        super(Pictogram, pictogram).save()
+        pictogram.save()
 
         scope = self._pictogram_scope_label(organization, citizen)
         self.stdout.write(f"  Created pictogram: {name} [{scope}]")
@@ -168,7 +166,7 @@ class Command(BaseCommand):
         return "global"
 
     @staticmethod
-    def _make_placeholder_image(label, color):
+    def _make_placeholder_image(color):
         """Generate a simple colored 200x200 PNG placeholder."""
         hex_color = color.lstrip("#")
         rgb = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))

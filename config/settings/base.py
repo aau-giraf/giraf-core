@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "ninja_jwt",
     "ninja_jwt.token_blacklist",
     # GIRAF apps
+    "core",
     "apps.users",
     "apps.organizations",
     "apps.citizens",
