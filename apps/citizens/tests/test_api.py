@@ -1,60 +1,14 @@
-"""Tests for Citizen model and API endpoints.
-
-Citizens are kids with autism, belonging to an organization.
-Written BEFORE implementation.
-"""
+"""Tests for Citizen API endpoints."""
 
 import pytest
 
-from apps.organizations.models import Organization
-from conftest import auth_header
-
-# ---------------------------------------------------------------------------
-# Model tests
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.django_db
-class TestCitizenModel:
-    def test_create_citizen(self):
-        from apps.citizens.models import Citizen
-
-        org = Organization.objects.create(name="Test School")
-        citizen = Citizen.objects.create(
-            first_name="Alice",
-            last_name="Smith",
-            organization=org,
-        )
-        assert citizen.pk is not None
-        assert citizen.first_name == "Alice"
-        assert citizen.organization == org
-        assert str(citizen) == "Alice Smith"
-
-    def test_citizen_belongs_to_organization(self):
-        from apps.citizens.models import Citizen
-
-        org = Organization.objects.create(name="Test School")
-        Citizen.objects.create(first_name="Bob", last_name="Jones", organization=org)
-        assert org.citizens.count() == 1
-
-    def test_cascade_delete_org_deletes_citizens(self):
-        from apps.citizens.models import Citizen
-
-        org = Organization.objects.create(name="Test School")
-        Citizen.objects.create(first_name="Bob", last_name="Jones", organization=org)
-        org.delete()
-        assert Citizen.objects.count() == 0
-
-
-# ---------------------------------------------------------------------------
-# API tests
-# ---------------------------------------------------------------------------
+from conftest import auth_header_for_user
 
 
 @pytest.mark.django_db
 class TestCreateCitizen:
     def test_member_can_create_citizen(self, client, org, member):
-        headers = auth_header(client, "member")
+        headers = auth_header_for_user(member)
         response = client.post(
             f"/api/v1/organizations/{org.id}/citizens",
             data={"first_name": "Alice", "last_name": "Smith"},
@@ -67,7 +21,7 @@ class TestCreateCitizen:
         assert data["last_name"] == "Smith"
 
     def test_non_member_cannot_create_citizen(self, client, org, non_member):
-        headers = auth_header(client, "outsider")
+        headers = auth_header_for_user(non_member)
         response = client.post(
             f"/api/v1/organizations/{org.id}/citizens",
             data={"first_name": "Alice", "last_name": "Smith"},
@@ -85,13 +39,13 @@ class TestListCitizens:
         Citizen.objects.create(first_name="Alice", last_name="A", organization=org)
         Citizen.objects.create(first_name="Bob", last_name="B", organization=org)
 
-        headers = auth_header(client, "member")
+        headers = auth_header_for_user(member)
         response = client.get(f"/api/v1/organizations/{org.id}/citizens", **headers)
         assert response.status_code == 200
         assert len(response.json()["items"]) == 2
 
     def test_non_member_cannot_list(self, client, org, non_member):
-        headers = auth_header(client, "outsider")
+        headers = auth_header_for_user(non_member)
         response = client.get(f"/api/v1/organizations/{org.id}/citizens", **headers)
         assert response.status_code == 403
 
@@ -103,7 +57,7 @@ class TestGetCitizen:
 
         citizen = Citizen.objects.create(first_name="Alice", last_name="A", organization=org)
 
-        headers = auth_header(client, "member")
+        headers = auth_header_for_user(member)
         response = client.get(f"/api/v1/citizens/{citizen.id}", **headers)
         assert response.status_code == 200
         assert response.json()["first_name"] == "Alice"
@@ -113,7 +67,7 @@ class TestGetCitizen:
 
         citizen = Citizen.objects.create(first_name="Alice", last_name="A", organization=org)
 
-        headers = auth_header(client, "outsider")
+        headers = auth_header_for_user(non_member)
         response = client.get(f"/api/v1/citizens/{citizen.id}", **headers)
         assert response.status_code == 403
 
@@ -125,7 +79,7 @@ class TestUpdateCitizen:
 
         citizen = Citizen.objects.create(first_name="Alice", last_name="A", organization=org)
 
-        headers = auth_header(client, "member")
+        headers = auth_header_for_user(member)
         response = client.patch(
             f"/api/v1/citizens/{citizen.id}",
             data={"first_name": "Alicia"},
@@ -143,7 +97,7 @@ class TestDeleteCitizen:
 
         citizen = Citizen.objects.create(first_name="Alice", last_name="A", organization=org)
 
-        headers = auth_header(client, "owner")
+        headers = auth_header_for_user(owner)
         response = client.delete(f"/api/v1/citizens/{citizen.id}", **headers)
         assert response.status_code == 204
         assert not Citizen.objects.filter(id=citizen.id).exists()
@@ -153,12 +107,12 @@ class TestDeleteCitizen:
 
         citizen = Citizen.objects.create(first_name="Alice", last_name="A", organization=org)
 
-        headers = auth_header(client, "member")
+        headers = auth_header_for_user(member)
         response = client.delete(f"/api/v1/citizens/{citizen.id}", **headers)
         assert response.status_code == 403
 
     def test_delete_nonexistent_citizen_returns_404(self, client, org, owner):
-        headers = auth_header(client, "owner")
+        headers = auth_header_for_user(owner)
         response = client.delete("/api/v1/citizens/99999", **headers)
         assert response.status_code == 404
 
@@ -166,7 +120,7 @@ class TestDeleteCitizen:
 @pytest.mark.django_db
 class TestCitizenNotFound:
     def test_get_nonexistent_citizen_returns_404(self, client, org, member):
-        headers = auth_header(client, "member")
+        headers = auth_header_for_user(member)
         response = client.get("/api/v1/citizens/99999", **headers)
         assert response.status_code == 404
 
@@ -178,7 +132,7 @@ class TestUpdateCitizenBothFields:
 
         citizen = Citizen.objects.create(first_name="Alice", last_name="A", organization=org)
 
-        headers = auth_header(client, "member")
+        headers = auth_header_for_user(member)
         response = client.patch(
             f"/api/v1/citizens/{citizen.id}",
             data={"first_name": "Bob", "last_name": "Z"},
