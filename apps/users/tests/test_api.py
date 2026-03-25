@@ -8,33 +8,17 @@ import io
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client
 from PIL import Image
 
 from apps.users.tests.factories import UserFactory
+from conftest import auth_header_for_user
 
 User = get_user_model()
 
 
 @pytest.fixture
-def client():
-    return Client()
-
-
-@pytest.fixture
 def user(db):
     return UserFactory(username="testuser", password="testpass123", email="test@example.com")
-
-
-def get_auth_header(client, username="testuser", password="testpass123"):
-    """Helper to get authentication header for requests."""
-    resp = client.post(
-        "/api/v1/token/pair",
-        data={"username": username, "password": password},
-        content_type="application/json",
-    )
-    token = resp.json()["access"]
-    return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +29,7 @@ def get_auth_header(client, username="testuser", password="testpass123"):
 @pytest.mark.django_db
 class TestUpdateProfile:
     def test_update_profile_success(self, client, user):
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
         response = client.put(
             "/api/v1/users/me",
             data={
@@ -71,7 +55,7 @@ class TestUpdateProfile:
     def test_update_profile_partial(self, client, user):
         """Test that only provided fields are updated."""
         original_email = user.email
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
         response = client.put(
             "/api/v1/users/me",
             data={"first_name": "NewFirst"},
@@ -100,7 +84,7 @@ class TestUpdateProfile:
 @pytest.mark.django_db
 class TestChangePassword:
     def test_change_password_success(self, client, user):
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
         response = client.put(
             "/api/v1/users/me/password",
             data={
@@ -112,13 +96,22 @@ class TestChangePassword:
         )
         assert response.status_code == 200
 
-        # Verify can login with new password
-        new_headers = get_auth_header(client, password="NewStr0ngPass!")
-        verify_response = client.get("/api/v1/users/me", **new_headers)
+        # Verify can login with new password (intentional HTTP round-trip)
+        login_resp = client.post(
+            "/api/v1/token/pair",
+            data={"username": "testuser", "password": "NewStr0ngPass!"},
+            content_type="application/json",
+        )
+        assert login_resp.status_code == 200
+        new_token = login_resp.json()["access"]
+        verify_response = client.get(
+            "/api/v1/users/me",
+            HTTP_AUTHORIZATION=f"Bearer {new_token}",
+        )
         assert verify_response.status_code == 200
 
     def test_change_password_wrong_old_password(self, client, user):
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
         response = client.put(
             "/api/v1/users/me/password",
             data={
@@ -132,7 +125,7 @@ class TestChangePassword:
         assert "Old password is incorrect" in response.json()["detail"]
 
     def test_change_password_weak_new_password(self, client, user):
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
         response = client.put(
             "/api/v1/users/me/password",
             data={
@@ -165,7 +158,7 @@ class TestChangePassword:
 class TestDeleteAccount:
     def test_delete_account_success(self, client, user):
         user_id = user.id
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
         response = client.delete("/api/v1/users/me", **headers)
         assert response.status_code == 204
 
@@ -174,10 +167,10 @@ class TestDeleteAccount:
         assert not user_obj.is_active
 
     def test_delete_account_cannot_login_after(self, client, user):
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
         client.delete("/api/v1/users/me", **headers)
 
-        # Try to login with deleted account
+        # Try to login with deleted account (intentional HTTP round-trip)
         login_response = client.post(
             "/api/v1/token/pair",
             data={"username": "testuser", "password": "testpass123"},
@@ -198,7 +191,7 @@ class TestDeleteAccount:
 @pytest.mark.django_db
 class TestUploadProfilePicture:
     def test_upload_profile_picture_success(self, client, user):
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
         # Create a valid test image
         buf = io.BytesIO()
         Image.new("RGB", (10, 10), color="red").save(buf, format="JPEG")
@@ -216,7 +209,7 @@ class TestUploadProfilePicture:
         assert "profile_pictures" in data["profile_picture"]
 
     def test_upload_profile_picture_invalid_type(self, client, user):
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
         # Create a non-image file
         text_file = SimpleUploadedFile(
             "test.txt",
@@ -234,7 +227,7 @@ class TestUploadProfilePicture:
 
     def test_upload_profile_picture_replaces_old(self, client, user):
         """Test that uploading a new picture deletes the old one."""
-        headers = get_auth_header(client)
+        headers = auth_header_for_user(user)
 
         # Upload first image
         buf1 = io.BytesIO()

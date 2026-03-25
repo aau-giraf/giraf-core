@@ -8,19 +8,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
 from apps.pictograms.services import PictogramService
+from apps.pictograms.tests.utils import make_test_audio, make_test_image
 from core.exceptions import BusinessValidationError
-
-
-def _make_test_image(fmt="PNG", name="test.png") -> SimpleUploadedFile:
-    buf = io.BytesIO()
-    Image.new("RGB", (10, 10), color="red").save(buf, format=fmt)
-    buf.seek(0)
-    content_type = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}[fmt]
-    return SimpleUploadedFile(name, buf.read(), content_type=content_type)
-
-
-def _make_test_audio(name="test.mp3", size=1024) -> SimpleUploadedFile:
-    return SimpleUploadedFile(name, b"\xff" * size, content_type="audio/mpeg")
 
 
 @pytest.mark.django_db
@@ -44,32 +33,32 @@ class TestPictogramServiceUpload:
             PictogramService.upload_pictogram(name="Fake", image=file)
 
     def test_upload_valid_image_succeeds(self):
-        image = _make_test_image()
+        image = make_test_image()
         p = PictogramService.upload_pictogram(name="Valid", image=image, generate_sound=False)
         assert p.pk is not None
         assert p.name == "Valid"
 
     def test_upload_with_sound_file(self):
-        image = _make_test_image()
-        sound = _make_test_audio()
+        image = make_test_image()
+        sound = make_test_audio()
         p = PictogramService.upload_pictogram(name="WithSound", image=image, sound=sound, generate_sound=False)
         assert p.pk is not None
         assert p.sound is not None
 
     def test_upload_rejects_invalid_audio(self):
-        image = _make_test_image()
+        image = make_test_image()
         bad_sound = SimpleUploadedFile("test.txt", b"not audio", content_type="text/plain")
         with pytest.raises(BusinessValidationError, match="Only MP3"):
             PictogramService.upload_pictogram(name="BadSound", image=image, sound=bad_sound)
 
     def test_upload_rejects_spoofed_mp3(self):
-        image = _make_test_image()
+        image = make_test_image()
         spoofed = SimpleUploadedFile("sneaky.mp3", b"not actually mp3 data", content_type="audio/mpeg")
         with pytest.raises(BusinessValidationError, match="not a valid MP3"):
             PictogramService.upload_pictogram(name="Spoofed", image=image, sound=spoofed)
 
     def test_upload_rejects_oversized_audio(self):
-        image = _make_test_image()
+        image = make_test_image()
         big_sound = SimpleUploadedFile("big.mp3", b"\xff" * (11 * 1024 * 1024), content_type="audio/mpeg")
         with pytest.raises(BusinessValidationError, match="10MB"):
             PictogramService.upload_pictogram(name="BigSound", image=image, sound=big_sound)
@@ -140,7 +129,7 @@ class TestPictogramServiceUpdate:
         p = PictogramService.create_pictogram(
             name="Test", image_url="https://example.com/img.png", generate_sound=False
         )
-        sound = _make_test_audio()
+        sound = make_test_audio()
         updated = PictogramService.update_pictogram(pictogram_id=p.pk, sound=sound)
         assert updated.sound
 
