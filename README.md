@@ -39,6 +39,9 @@ uv run python manage.py migrate
 # Create a superuser (for Django Admin at /admin)
 uv run python manage.py createsuperuser
 
+# Seed sample data (users, orgs, citizens, pictograms, etc.)
+uv run python manage.py seed_dev_data
+
 # Start the dev server
 uv run python manage.py runserver
 # API at http://localhost:8000/api/v1/docs
