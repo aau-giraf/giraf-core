@@ -56,6 +56,14 @@ def second_org(db, non_member):
     return org
 
 
+@pytest.fixture
+def citizen(db, org):
+    """A citizen belonging to the test organization."""
+    from apps.citizens.models import Citizen
+
+    return Citizen.objects.create(first_name="Alice", last_name="Test", organization=org)
+
+
 def auth_header_for_user(user) -> dict:
     """Get JWT auth header by creating a token directly (no HTTP round-trip)."""
     token = AccessToken.for_user(user)

@@ -312,3 +312,100 @@ class TestPictogramPermissions:
         response = client.delete(f"/api/v1/pictograms/{p.id}", **headers)
         assert response.status_code == 204
         assert not Pictogram.objects.filter(id=p.id).exists()
+
+
+@pytest.mark.django_db
+class TestPictogramCitizenScopeAPI:
+    def test_member_can_create_citizen_scoped_pictogram(self, client, org, member, citizen):
+        headers = auth_header_for_user(member)
+        response = client.post(
+            "/api/v1/pictograms",
+            data={
+                "name": "Alice Zoo",
+                "image_url": "https://example.com/zoo.png",
+                "organization_id": org.id,
+                "citizen_id": citizen.id,
+                "generate_sound": False,
+            },
+            content_type="application/json",
+            **headers,
+        )
+        assert response.status_code == 201
+        assert response.json()["citizen_id"] == citizen.id
+        assert response.json()["organization_id"] == org.id
+
+    def test_non_member_cannot_create_citizen_scoped(self, client, org, non_member, citizen):
+        headers = auth_header_for_user(non_member)
+        response = client.post(
+            "/api/v1/pictograms",
+            data={
+                "name": "Bad",
+                "image_url": "https://example.com/pic.png",
+                "organization_id": org.id,
+                "citizen_id": citizen.id,
+                "generate_sound": False,
+            },
+            content_type="application/json",
+            **headers,
+        )
+        assert response.status_code == 403
+
+    def test_list_for_citizen_returns_hierarchy(self, client, org, member, citizen):
+        from apps.pictograms.models import Pictogram
+
+        Pictogram.objects.create(name="Global", image_url="https://g.com/g.png", organization=None)
+        Pictogram.objects.create(name="Org", image_url="https://o.com/o.png", organization=org)
+        Pictogram.objects.create(
+            name="Citizen", image_url="https://c.com/c.png", organization=org, citizen=citizen
+        )
+
+        headers = auth_header_for_user(member)
+        response = client.get(f"/api/v1/pictograms?citizen_id={citizen.id}", **headers)
+        assert response.status_code == 200
+        names = [p["name"] for p in response.json()["items"]]
+        assert "Global" in names
+        assert "Org" in names
+        assert "Citizen" in names
+
+    def test_list_for_citizen_excludes_other_citizens(self, client, org, member, citizen):
+        from apps.citizens.models import Citizen
+        from apps.pictograms.models import Pictogram
+
+        bob = Citizen.objects.create(first_name="Bob", last_name="Test", organization=org)
+        Pictogram.objects.create(
+            name="Alice Pic", image_url="https://a.com/a.png", organization=org, citizen=citizen
+        )
+        Pictogram.objects.create(
+            name="Bob Pic", image_url="https://b.com/b.png", organization=org, citizen=bob
+        )
+
+        headers = auth_header_for_user(member)
+        response = client.get(f"/api/v1/pictograms?citizen_id={citizen.id}", **headers)
+        assert response.status_code == 200
+        names = [p["name"] for p in response.json()["items"]]
+        assert "Alice Pic" in names
+        assert "Bob Pic" not in names
+
+    def test_upload_citizen_scoped_pictogram(self, client, org, member, citizen):
+        from apps.pictograms.tests.utils import make_test_image
+
+        headers = auth_header_for_user(member)
+        image = make_test_image()
+        response = client.post(
+            "/api/v1/pictograms/upload",
+            data={
+                "name": "Uploaded",
+                "image": image,
+                "organization_id": org.id,
+                "citizen_id": citizen.id,
+                "generate_sound": False,
+            },
+            **headers,
+        )
+        assert response.status_code == 201
+        assert response.json()["citizen_id"] == citizen.id
+
+    def test_non_member_cannot_list_citizen_pictograms(self, client, org, non_member, citizen):
+        headers = auth_header_for_user(non_member)
+        response = client.get(f"/api/v1/pictograms?citizen_id={citizen.id}", **headers)
+        assert response.status_code == 403

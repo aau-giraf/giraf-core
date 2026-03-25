@@ -73,3 +73,60 @@ class TestPictogramValidation:
 
         p = Pictogram.objects.create(name="File Only", image=make_test_image())
         assert p.pk is not None
+
+
+@pytest.mark.django_db
+class TestPictogramCitizenScope:
+    def test_create_citizen_scoped_pictogram(self):
+        from apps.citizens.models import Citizen
+        from apps.pictograms.models import Pictogram
+
+        org = Organization.objects.create(name="Test School")
+        citizen = Citizen.objects.create(first_name="Alice", last_name="Test", organization=org)
+        p = Pictogram.objects.create(
+            name="Alice Zoo",
+            image_url="https://example.com/zoo.png",
+            organization=org,
+            citizen=citizen,
+        )
+        assert p.pk is not None
+        assert p.citizen == citizen
+        assert p.organization == org
+
+    def test_citizen_scoped_requires_organization(self):
+        from apps.citizens.models import Citizen
+        from apps.pictograms.models import Pictogram
+
+        org = Organization.objects.create(name="Test School")
+        citizen = Citizen.objects.create(first_name="Alice", last_name="Test", organization=org)
+        with pytest.raises(ValidationError, match="organization"):
+            Pictogram.objects.create(
+                name="Bad",
+                image_url="https://example.com/pic.png",
+                organization=None,
+                citizen=citizen,
+            )
+
+    def test_citizen_must_belong_to_pictogram_org(self):
+        from apps.citizens.models import Citizen
+        from apps.pictograms.models import Pictogram
+
+        org_a = Organization.objects.create(name="School A")
+        org_b = Organization.objects.create(name="School B")
+        citizen = Citizen.objects.create(first_name="Alice", last_name="Test", organization=org_a)
+        with pytest.raises(ValidationError, match="organization"):
+            Pictogram.objects.create(
+                name="Wrong Org",
+                image_url="https://example.com/pic.png",
+                organization=org_b,
+                citizen=citizen,
+            )
+
+    def test_existing_global_and_org_pictograms_unaffected(self):
+        from apps.pictograms.models import Pictogram
+
+        org = Organization.objects.create(name="Test School")
+        g = Pictogram.objects.create(name="Global", image_url="https://g.com/g.png", organization=None)
+        o = Pictogram.objects.create(name="Org", image_url="https://o.com/o.png", organization=org)
+        assert g.citizen is None
+        assert o.citizen is None

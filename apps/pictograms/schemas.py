@@ -8,6 +8,7 @@ class PictogramCreateIn(Schema):
     name: str = Field(min_length=1, max_length=255)
     image_url: str = Field(default="", max_length=500)
     organization_id: int | None = None
+    citizen_id: int | None = None
     generate_image: bool = False
     generate_sound: bool = True
 
@@ -25,6 +26,7 @@ class PictogramOut(Schema):
     image_url: str
     sound_url: str
     organization_id: int | None
+    citizen_id: int | None
 
     @staticmethod
     def resolve_image_url(obj):
