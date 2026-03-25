@@ -81,6 +81,16 @@ class TestPictogramAPI:
         assert response.status_code == 200
         assert "sound_url" in response.json()
 
+    def test_create_api_rejects_no_image_source(self, client, owner, org):
+        headers = auth_header_for_user(owner)
+        response = client.post(
+            "/api/v1/pictograms",
+            data={"name": "No Image", "image_url": "", "organization_id": org.id, "generate_sound": False},
+            content_type="application/json",
+            **headers,
+        )
+        assert response.status_code == 422
+
     def test_delete_pictogram(self, client, org, owner):
         from apps.pictograms.models import Pictogram
 

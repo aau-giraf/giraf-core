@@ -5,16 +5,11 @@ Written BEFORE implementation — tests define the expected auth behavior.
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client
 
 from apps.users.tests.factories import UserFactory
+from conftest import auth_header_for_user
 
 User = get_user_model()
-
-
-@pytest.fixture
-def client():
-    return Client()
 
 
 @pytest.fixture
@@ -167,17 +162,8 @@ class TestTokenRefresh:
 
 @pytest.mark.django_db
 class TestUsersMe:
-    def _get_auth_header(self, client, username="existing", password="testpass123"):
-        resp = client.post(
-            "/api/v1/token/pair",
-            data={"username": username, "password": password},
-            content_type="application/json",
-        )
-        token = resp.json()["access"]
-        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
-
     def test_me_returns_current_user(self, client, existing_user):
-        headers = self._get_auth_header(client)
+        headers = auth_header_for_user(existing_user)
         response = client.get("/api/v1/users/me", **headers)
         assert response.status_code == 200
         data = response.json()
