@@ -11,6 +11,22 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # ---------------------------------------------------------------------------
+# CORS — require explicit origins in production
+# ---------------------------------------------------------------------------
+_cors_raw = os.environ.get("CORS_ALLOWED_ORIGINS", "")
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_raw.split(",") if o.strip()]
+CORS_ALLOW_ALL_ORIGINS = False
+
+if not CORS_ALLOWED_ORIGINS:
+    import warnings
+
+    warnings.warn(
+        "CORS_ALLOWED_ORIGINS is empty — no cross-origin requests will be allowed. "
+        "Set the CORS_ALLOWED_ORIGINS environment variable to a comma-separated list of origins.",
+        stacklevel=1,
+    )
+
+# ---------------------------------------------------------------------------
 # Security hardening (Django's built-in SecurityMiddleware handles these)
 # ---------------------------------------------------------------------------
 SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "true").lower() != "false"
