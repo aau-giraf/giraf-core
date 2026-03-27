@@ -57,8 +57,8 @@ class PictogramService:
             client = GirafAIClient()
             image_bytes = client.generate_image(prompt)
             pictogram.image.save(f"{pictogram.pk}.png", ContentFile(image_bytes), save=True)
-        except GirafAIUnavailableError:
-            logger.warning("giraf-ai unavailable — skipping image generation for pictogram %s", pictogram.pk)
+        except GirafAIUnavailableError as exc:
+            logger.warning("giraf-ai unavailable for pictogram %s: %s", pictogram.pk, exc, exc_info=True)
         except Exception:
             logger.exception("Unexpected error generating image for pictogram %s", pictogram.pk)
 

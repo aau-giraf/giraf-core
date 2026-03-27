@@ -27,7 +27,7 @@ class Command(BaseCommand):
         self.stdout.write("Seeding development data...\n")
 
         # ── Users ──────────────────────────────────────────────
-        admin = self._create_user("admin", "Admin", "Adminsen", is_superuser=True, is_staff=True)
+        self._create_user("admin", "Admin", "Adminsen", is_superuser=True, is_staff=True)
         anna = self._create_user("anna", "Anna", "Pedersen")
         lars = self._create_user("lars", "Lars", "Mortensen")
         sofie = self._create_user("sofie", "Sofie", "Nielsen")

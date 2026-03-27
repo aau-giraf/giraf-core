@@ -75,7 +75,10 @@ def upload_pictogram(
             organization_id = citizen.organization_id
         check_role_or_raise(request.auth, citizen.organization_id, min_role=OrgRole.MEMBER)
     else:
-        check_org_or_superuser(request.auth, organization_id, min_role=OrgRole.MEMBER, action="create global pictograms")
+        check_org_or_superuser(
+            request.auth, organization_id,
+            min_role=OrgRole.MEMBER, action="create global pictograms",
+        )
 
     pictogram = PictogramService.upload_pictogram(
         name=name,
