@@ -5,7 +5,7 @@ import io
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from PIL import Image
 
@@ -26,13 +26,10 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         if not settings.DEBUG:
-            self.stderr.write(
-                self.style.ERROR(
-                    "ERROR: seed_dev_data can only run with DEBUG=True. "
-                    "This command is intended for local development only."
-                )
+            raise CommandError(
+                "seed_dev_data can only run with DEBUG=True. "
+                "This command is intended for local development only."
             )
-            return
 
         self.stdout.write("Seeding development data...\n")
 

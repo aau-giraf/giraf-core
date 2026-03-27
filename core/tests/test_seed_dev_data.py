@@ -3,6 +3,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from apps.citizens.models import Citizen
 from apps.grades.models import Grade
@@ -21,7 +22,8 @@ class TestSeedDevData:
 
     def test_refuses_to_run_without_debug(self, settings):
         settings.DEBUG = False
-        call_command("seed_dev_data")
+        with pytest.raises(CommandError, match="can only run with DEBUG=True"):
+            call_command("seed_dev_data")
         assert User.objects.count() == 0
 
     def test_creates_expected_records(self):
