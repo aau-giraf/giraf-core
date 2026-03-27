@@ -164,3 +164,92 @@ uv run mypy apps/ config/ core/
 ```
 
 Ruff is configured for Python 3.12, line length 120, with migrations excluded.
+
+---
+
+## Adding a New App
+
+Every app follows the same `models → schemas → services → api` pattern. Use this checklist:
+
+### 1. Create the app
+
+```bash
+uv run python manage.py startapp myapp apps/myapp
+```
+
+Then update `apps/myapp/apps.py` to set the correct name:
+
+```python
+class MyappConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.myapp"  # must match the path under apps/
+```
+
+### 2. Add to `INSTALLED_APPS`
+
+In `config/settings/base.py`:
+
+```python
+INSTALLED_APPS = [
+    ...
+    "apps.myapp",
+]
+```
+
+### 3. Create the four core files
+
+| File | Purpose | Example to follow |
+|------|---------|-------------------|
+| `models.py` | Django models with `clean()` validation | `apps/citizens/models.py` |
+| `schemas.py` | Ninja `Schema` classes for input/output | `apps/pictograms/schemas.py` |
+| `services.py` | Business logic (static methods on a service class) | `apps/citizens/services.py` |
+| `api.py` | Ninja `Router` with endpoints that delegate to the service | `apps/citizens/api.py` |
+
+**Conventions:**
+- Models call `self.full_clean()` in `save()` for validation
+- Services raise exceptions from `core/exceptions.py` (`ResourceNotFoundError`, `BusinessValidationError`, etc.)
+- API endpoints use `check_role_or_raise()` or `check_org_or_superuser()` from `core/permissions.py`
+- Endpoints return `(status_code, data)` tuples
+
+### 4. Register the router
+
+In `config/api.py`:
+
+```python
+from apps.myapp.api import router as myapp_router
+
+api.add_router("/myapp", myapp_router)
+```
+
+### 5. Create migrations
+
+```bash
+uv run python manage.py makemigrations myapp
+```
+
+### 6. Add admin registration
+
+In `apps/myapp/admin.py`, register your models so they appear in Django Admin.
+
+### 7. Add tests
+
+Create the test directory structure:
+
+```
+apps/myapp/tests/
+    __init__.py
+    factories.py    # factory_boy factories for test data
+    test_models.py  # model validation tests
+    test_services.py # service logic tests
+    test_api.py     # endpoint integration tests
+```
+
+Use `@pytest.mark.django_db` on test classes. See `apps/pictograms/tests/` for a complete example.
+
+### 8. Run and verify
+
+```bash
+uv run python manage.py migrate
+uv run pytest apps/myapp/ -v
+uv run python manage.py runserver  # check /api/v1/docs for your endpoints
+```
