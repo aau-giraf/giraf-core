@@ -3,6 +3,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from apps.citizens.models import Citizen
 from apps.grades.models import Grade
@@ -15,6 +16,16 @@ User = get_user_model()
 
 @pytest.mark.django_db
 class TestSeedDevData:
+    @pytest.fixture(autouse=True)
+    def _enable_debug(self, settings):
+        settings.DEBUG = True
+
+    def test_refuses_to_run_without_debug(self, settings):
+        settings.DEBUG = False
+        with pytest.raises(CommandError, match="can only run with DEBUG=True"):
+            call_command("seed_dev_data")
+        assert User.objects.count() == 0
+
     def test_creates_expected_records(self):
         call_command("seed_dev_data")
 
