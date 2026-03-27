@@ -8,9 +8,9 @@ from django.urls import path
 from config.api import api
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("api/v1/", api.urls),
 ]
 
 if settings.DEBUG:
+    urlpatterns += [path("admin/", admin.site.urls)]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # type: ignore[arg-type]

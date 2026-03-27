@@ -1,5 +1,6 @@
 """GIRAF Core — Ninja API root configuration."""
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection
 from ninja import Schema
@@ -35,6 +36,7 @@ api = NinjaExtraAPI(
     version="1.0.0",
     description="Shared domain service for the GIRAF platform.",
     auth=JWTAuth(),
+    docs_url="/docs" if settings.DEBUG else None,
 )
 
 
