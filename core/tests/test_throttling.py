@@ -35,6 +35,10 @@ class TestLoginRateThrottle:
 
 @pytest.mark.django_db
 class TestRegisterRateThrottle:
+    @pytest.fixture(autouse=True)
+    def _open_registration(self, settings):
+        settings.REGISTRATION_OPEN = True
+
     def test_register_blocks_after_limit(self, client):
         for i in range(3):
             resp = client.post(

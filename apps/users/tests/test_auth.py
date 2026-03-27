@@ -24,6 +24,20 @@ def existing_user(db):
 
 @pytest.mark.django_db
 class TestRegistration:
+    @pytest.fixture(autouse=True)
+    def _open_registration(self, settings):
+        settings.REGISTRATION_OPEN = True
+
+    def test_register_closed_returns_403(self, client, settings):
+        settings.REGISTRATION_OPEN = False
+        response = client.post(
+            "/api/v1/auth/register",
+            data={"username": "newuser", "password": "Str0ngPass!"},
+            content_type="application/json",
+        )
+        assert response.status_code == 403
+        assert User.objects.filter(username="newuser").exists() is False
+
     def test_register_creates_user(self, client):
         response = client.post(
             "/api/v1/auth/register",

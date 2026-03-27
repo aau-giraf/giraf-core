@@ -28,6 +28,10 @@ def _login(client, username):
 
 @pytest.mark.django_db
 class TestFullUserJourney:
+    @pytest.fixture(autouse=True)
+    def _open_registration(self, settings):
+        settings.REGISTRATION_OPEN = True
+
     def test_complete_workflow(self, client):
         # 1. Register user A and B
         resp_a = _register(client, "alice", "alice@example.com")

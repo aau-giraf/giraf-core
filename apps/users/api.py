@@ -1,5 +1,6 @@
 """User API endpoints."""
 
+from django.conf import settings
 from ninja import File, Router
 from ninja.files import UploadedFile
 
@@ -13,12 +14,14 @@ router = Router(tags=["users"])
 
 @router.post(
     "/auth/register",
-    response={201: UserOut, 409: ErrorOut, 422: ErrorOut},
+    response={201: UserOut, 403: ErrorOut, 409: ErrorOut, 422: ErrorOut},
     auth=None,
     throttle=[RegisterRateThrottle()],
 )
 def register(request, payload: RegisterIn):
-    """Register a new user account."""
+    """Register a new user account. Requires REGISTRATION_OPEN=True."""
+    if not getattr(settings, "REGISTRATION_OPEN", False):
+        return 403, {"detail": "Registration is currently closed."}
     user = UserService.register(
         username=payload.username,
         password=payload.password,
