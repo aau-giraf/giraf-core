@@ -15,6 +15,15 @@ User = get_user_model()
 
 @pytest.mark.django_db
 class TestSeedDevData:
+    @pytest.fixture(autouse=True)
+    def _enable_debug(self, settings):
+        settings.DEBUG = True
+
+    def test_refuses_to_run_without_debug(self, settings):
+        settings.DEBUG = False
+        call_command("seed_dev_data")
+        assert User.objects.count() == 0
+
     def test_creates_expected_records(self):
         call_command("seed_dev_data")
 
