@@ -140,7 +140,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Registration
 # ---------------------------------------------------------------------------
 
-REGISTRATION_OPEN = False  # Disable open registration by default
+REGISTRATION_OPEN = os.environ.get("REGISTRATION_OPEN", "false").lower() == "true"
 
 # ---------------------------------------------------------------------------
 # CORS
