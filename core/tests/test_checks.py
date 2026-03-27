@@ -1,7 +1,5 @@
 """Tests for security system checks."""
 
-import pytest
-
 from core.checks import check_cors_not_open
 
 
