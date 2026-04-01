@@ -223,7 +223,7 @@ class TestUploadProfilePicture:
             **headers,
         )
         assert response.status_code == 422
-        assert "JPEG, PNG, and WebP" in str(response.json()["detail"])
+        assert "not a valid image" in str(response.json()["detail"])
 
     def test_upload_profile_picture_replaces_old(self, client, user):
         """Test that uploading a new picture deletes the old one."""
