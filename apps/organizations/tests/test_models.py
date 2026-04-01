@@ -5,6 +5,7 @@ Written BEFORE implementation — defines the expected domain behavior.
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.users.tests.factories import UserFactory
@@ -25,7 +26,7 @@ class TestOrganizationModel:
     def test_organization_name_required(self):
         from apps.organizations.models import Organization
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Organization.objects.create(name="")
 
 

@@ -70,7 +70,7 @@ class TestJWTOrgRoleClaims:
 
     def test_login_response_includes_org_roles(self, client, user, orgs_with_roles):
         """The /token/pair JSON response body also includes org_roles."""
-        org_a, org_b, org_c = orgs_with_roles
+        org_a, _org_b, _org_c = orgs_with_roles
         tokens = login(client)
 
         assert "org_roles" in tokens
@@ -78,7 +78,7 @@ class TestJWTOrgRoleClaims:
 
     def test_org_roles_update_after_role_change(self, client, user, orgs_with_roles):
         """After a role change, a new token should reflect the updated role."""
-        org_a, org_b, org_c = orgs_with_roles
+        _org_a, org_b, _org_c = orgs_with_roles
 
         # Change user's role in org_b from admin to owner
         mem = Membership.objects.get(user=user, organization=org_b)

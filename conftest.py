@@ -67,4 +67,4 @@ def citizen(db, org):
 def auth_header_for_user(user) -> dict:
     """Get JWT auth header by creating a token directly (no HTTP round-trip)."""
     token = AccessToken.for_user(user)
-    return {"HTTP_AUTHORIZATION": f"Bearer {str(token)}"}
+    return {"HTTP_AUTHORIZATION": f"Bearer {token!s}"}

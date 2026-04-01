@@ -51,7 +51,7 @@ class TestCheckRole:
         org = Organization.objects.create(name="Test School")
         Membership.objects.create(user=user, organization=org, role=OrgRole.MEMBER)
 
-        allowed, msg = check_role(user, org.id, min_role=OrgRole.ADMIN)
+        allowed, _msg = check_role(user, org.id, min_role=OrgRole.ADMIN)
         assert allowed is False
 
     def test_owner_passes_admin_check(self):

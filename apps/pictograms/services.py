@@ -24,8 +24,8 @@ class PictogramService:
     def _get_pictogram_or_raise(pictogram_id: int) -> Pictogram:
         try:
             return Pictogram.objects.get(id=pictogram_id)
-        except Pictogram.DoesNotExist:
-            raise ResourceNotFoundError(f"Pictogram {pictogram_id} not found.")
+        except Pictogram.DoesNotExist as e:
+            raise ResourceNotFoundError(f"Pictogram {pictogram_id} not found.") from e
 
     @staticmethod
     def _try_generate_sound(pictogram: Pictogram) -> None:
@@ -103,7 +103,7 @@ class PictogramService:
                     citizen_id=citizen_id,
                 )
             except DjangoValidationError as e:
-                raise BusinessValidationError(" ".join(e.messages))
+                raise BusinessValidationError(" ".join(e.messages)) from e
 
             if generate_image:
                 PictogramService._try_generate_image(pictogram, name)

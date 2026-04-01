@@ -29,8 +29,8 @@ def validate_image_upload(file) -> str:
     try:
         Image.open(file).verify()
         file.seek(0)
-    except Exception:
-        raise BusinessValidationError("File is not a valid image.")
+    except Exception as e:
+        raise BusinessValidationError("File is not a valid image.") from e
 
     return mime_type
 

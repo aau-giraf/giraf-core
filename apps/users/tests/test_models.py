@@ -7,6 +7,7 @@ after the model is properly implemented.
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 
 User = get_user_model()
 
@@ -82,7 +83,7 @@ class TestUserUniqueness:
 
     def test_duplicate_username_raises(self):
         User.objects.create_user(username="unique", password="pass123")
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(IntegrityError):
             User.objects.create_user(username="unique", password="pass456")
 
     def test_duplicate_email_allowed(self):

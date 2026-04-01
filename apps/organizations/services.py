@@ -26,8 +26,8 @@ class OrganizationService:
     def _get_org_or_raise(org_id: int) -> Organization:
         try:
             return Organization.objects.get(id=org_id)
-        except Organization.DoesNotExist:
-            raise ResourceNotFoundError("Organization not found.")
+        except Organization.DoesNotExist as e:
+            raise ResourceNotFoundError("Organization not found.") from e
 
     @staticmethod
     def get_organization(org_id: int) -> Organization:
@@ -94,8 +94,8 @@ class OrganizationService:
 
         try:
             membership = Membership.objects.get(organization_id=org_id, user_id=target_user_id)
-        except Membership.DoesNotExist:
-            raise ResourceNotFoundError("Member not found in this organization.")
+        except Membership.DoesNotExist as e:
+            raise ResourceNotFoundError("Member not found in this organization.") from e
 
         OrganizationService._check_last_owner(org_id, membership)
 
@@ -113,8 +113,8 @@ class OrganizationService:
 
         try:
             membership = Membership.objects.get(organization_id=org_id, user_id=target_user_id)
-        except Membership.DoesNotExist:
-            raise ResourceNotFoundError("Member not found in this organization.")
+        except Membership.DoesNotExist as e:
+            raise ResourceNotFoundError("Member not found in this organization.") from e
 
         OrganizationService._check_last_owner(org_id, membership)
 

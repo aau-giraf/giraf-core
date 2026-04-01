@@ -21,8 +21,8 @@ class UserService:
     def _get_user_or_raise(user_id: int) -> User:
         try:
             return User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            raise ResourceNotFoundError(f"User {user_id} not found.")
+        except User.DoesNotExist as e:
+            raise ResourceNotFoundError(f"User {user_id} not found.") from e
 
     @staticmethod
     @transaction.atomic
@@ -42,7 +42,7 @@ class UserService:
         try:
             validate_password(password)
         except DjangoValidationError as e:
-            raise BusinessValidationError(e.messages)
+            raise BusinessValidationError(e.messages) from e
 
         user = User.objects.create_user(
             username=username,
@@ -93,7 +93,7 @@ class UserService:
         try:
             validate_password(new_password)
         except DjangoValidationError as e:
-            raise BusinessValidationError(e.messages)
+            raise BusinessValidationError(e.messages) from e
 
         user.set_password(new_password)
         user.save()
