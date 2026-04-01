@@ -124,10 +124,12 @@ def upload_sound(request, pictogram_id: int, sound: File[UploadedFile]):
     return 200, pictogram
 
 
-@router.get("/{pictogram_id}", response={200: PictogramOut, 404: ErrorOut})
+@router.get("/{pictogram_id}", response={200: PictogramOut, 403: ErrorOut, 404: ErrorOut})
 def get_pictogram(request, pictogram_id: int):
-    """Get a pictogram by ID."""
+    """Get a pictogram by ID. Org-scoped requires membership; global is open."""
     pictogram = PictogramService.get_pictogram(pictogram_id)
+    if pictogram.organization_id:
+        check_role_or_raise(request.auth, pictogram.organization_id, min_role=OrgRole.MEMBER)
     return 200, pictogram
 
 
