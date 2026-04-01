@@ -109,6 +109,24 @@ class TestPictogramAPI:
         assert response.status_code == 200
         assert "sound_url" in response.json()
 
+    def test_get_global_pictogram_no_org_check(self, client, non_member):
+        """Global pictograms (org=None) are accessible to any authenticated user."""
+        from apps.pictograms.models import Pictogram
+
+        p = Pictogram.objects.create(name="Global", image_url="https://g.com/g.png")
+        headers = auth_header_for_user(non_member)
+        response = client.get(f"/api/v1/pictograms/{p.id}", **headers)
+        assert response.status_code == 200
+
+    def test_get_org_pictogram_denied_for_non_member(self, client, org, non_member):
+        """Org-scoped pictograms require membership."""
+        from apps.pictograms.models import Pictogram
+
+        p = Pictogram.objects.create(name="Private", image_url="https://p.com/p.png", organization=org)
+        headers = auth_header_for_user(non_member)
+        response = client.get(f"/api/v1/pictograms/{p.id}", **headers)
+        assert response.status_code == 403
+
     def test_create_api_rejects_no_image_source(self, client, owner, org):
         headers = auth_header_for_user(owner)
         response = client.post(
