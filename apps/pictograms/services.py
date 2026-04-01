@@ -87,7 +87,7 @@ class PictogramService:
             if image_bytes:
                 image_content = ContentFile(image_bytes, name=f"{uuid.uuid4().hex}.png")
 
-        if not image_url and not image_content and generate_image:
+        if generate_image and not image_url and not image_content:
             raise BusinessValidationError(
                 "Image generation failed and no image_url was provided."
             )
