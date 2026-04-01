@@ -3,6 +3,7 @@
 import mimetypes
 import uuid
 
+from django.core.files.uploadedfile import UploadedFile
 from PIL import Image
 
 from core.exceptions import BusinessValidationError
@@ -11,7 +12,7 @@ ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
-def validate_image_upload(file) -> str:
+def validate_image_upload(file: UploadedFile) -> str:
     """Validate an uploaded image file. Returns the detected MIME type.
 
     Checks extension-based MIME type, file size, and PIL image validity.
@@ -39,7 +40,7 @@ ALLOWED_AUDIO_TYPES = ["audio/mpeg"]
 MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-def validate_audio_file(file) -> str:
+def validate_audio_file(file: UploadedFile) -> str:
     """Validate an uploaded audio file. Returns the detected MIME type.
 
     Checks extension-based MIME type, file size, and MP3 frame header.
