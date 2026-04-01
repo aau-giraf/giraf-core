@@ -28,7 +28,7 @@ GIRAF Core is the **single source of truth** for all shared data. The platform h
 
 ```bash
 # Install dependencies (requires uv — https://docs.astral.sh/uv/)
-uv sync --all-extras
+uv sync
 
 # Start the PostgreSQL database
 docker compose up -d core-db
@@ -69,7 +69,7 @@ apps/
   pictograms/          # Visual aids library (global or org-specific)
   invitations/         # Email-based org invitations (send, accept, reject)
 core/
-  clients/             # External service clients (giraf-ai stub)
+  clients/             # External service clients (giraf-ai HTTP client)
   permissions.py       # check_role(), check_role_or_raise(), get_membership_or_none()
   exceptions.py        # Domain exception hierarchy
   jwt.py               # Custom JWT claims (org_roles)
@@ -78,11 +78,9 @@ core/
   schemas.py           # Shared ErrorOut schema
 ```
 
----
-
 ## Admin UI
 
-Django Admin is available at `/admin/` in all environments — it serves as the central admin interface for the GIRAF platform. Client apps (Flutter, Expo, etc.) should not build their own admin systems.
+Django Admin is available at `/admin/` in development (`DEBUG=True`). It serves as the central admin interface for the GIRAF platform. Client apps (Flutter, Expo, etc.) should not build their own admin systems.
 
 **Access requirements:**
 - Users must have `is_staff=True` to log in
@@ -97,21 +95,15 @@ Django Admin is available at `/admin/` in all environments — it serves as the 
 
 Admin uses session-based auth (separate from the JWT API auth), and Django logs all admin actions for auditing.
 
----
+## Rate Limits
 
-## API Reference
-
-Interactive API docs are available at **http://localhost:8000/api/v1/docs** when running locally. All endpoints are prefixed with `/api/v1`.
-
-### Rate Limits
+All API endpoints are prefixed with `/api/v1`. Interactive docs are at **http://localhost:8000/api/v1/docs** when running locally.
 
 | Endpoint | Limit |
 | -------- | ----- |
 | Login (`/token/pair`) | 5 requests/minute per IP |
 | Registration (`/auth/register`) | 3 requests/minute per IP |
 | Invitation sends | 10 requests/minute per user |
-
----
 
 ## Environment Variables
 
@@ -126,8 +118,10 @@ Interactive API docs are available at **http://localhost:8000/api/v1/docs** when
 | `POSTGRES_HOST`          | `localhost`           | Database host                          |
 | `POSTGRES_PORT`          | `5432`                | Database port                          |
 | `GIRAF_AI_URL`           | (empty)               | Base URL for the giraf-ai service      |
+| `REGISTRATION_OPEN`      | `false`               | Set `true` to allow `/auth/register`   |
 | `CORS_ALLOWED_ORIGINS`   | (empty)               | Comma-separated allowed origins        |
 | `ALLOWED_HOSTS`          | (empty)               | Comma-separated allowed hosts (prod)   |
+| `REDIS_URL`              | (prod only)           | Redis URL for multi-process rate limiting |
 
 ## Testing
 
@@ -163,9 +157,7 @@ uv run ruff format .
 uv run mypy apps/ config/ core/
 ```
 
-Ruff is configured for Python 3.12, line length 120, with migrations excluded.
-
----
+Ruff is configured for Python 3.12, line length 120, with migrations excluded. Enabled rule sets: E, F, I, N, W, UP, S (secrets), B (bugbear), A (builtins), RUF, SIM, ARG, C4, PT.
 
 ## Adding a New App
 
