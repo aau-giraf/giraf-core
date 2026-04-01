@@ -43,7 +43,7 @@ line-length = 120
 exclude = ["**/migrations/**"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP", "S105", "S106", "S107", "B", "A", "RUF", "SIM", "ARG"]
+select = ["E", "F", "I", "N", "W", "UP", "S105", "S106", "S107", "B", "A", "RUF", "SIM", "ARG", "C4", "PT"]
 ignore = [
     "RUF012",  # Mutable ClassVar — Django Meta/ModelAdmin attrs are idiomatic without ClassVar
 ]
