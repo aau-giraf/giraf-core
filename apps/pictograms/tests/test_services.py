@@ -75,11 +75,13 @@ class TestPictogramServiceCreate:
         assert not p.sound
 
     def test_create_with_generate_image_skips_gracefully(self):
-        """When AI is unavailable, create still succeeds without generated image."""
+        """When AI is unavailable, create still succeeds with image_url fallback."""
         p = PictogramService.create_pictogram(
             name="Test", image_url="https://example.com/img.png", generate_image=True, generate_sound=False
         )
         assert p.pk is not None
+        assert not p.image
+        assert p.image_url == "https://example.com/img.png"
 
     @patch("apps.pictograms.services.GirafAIClient")
     def test_create_with_generate_sound_calls_ai(self, mock_client):

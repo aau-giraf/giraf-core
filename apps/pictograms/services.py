@@ -1,6 +1,7 @@
 """Business logic for pictogram operations."""
 
 import logging
+import uuid
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
@@ -84,7 +85,7 @@ class PictogramService:
         if generate_image:
             image_bytes = PictogramService._try_generate_image_bytes(name)
             if image_bytes:
-                image_content = ContentFile(image_bytes, name=f"{name}.png")
+                image_content = ContentFile(image_bytes, name=f"{uuid.uuid4().hex}.png")
 
         if not image_url and not image_content and generate_image:
             raise BusinessValidationError(
