@@ -1,5 +1,7 @@
 """Tests for URL configuration."""
 
+from unittest.mock import patch
+
 import pytest
 from django.test import Client
 
@@ -29,8 +31,6 @@ class TestURLConfiguration:
         assert data["db"] == "ok"
 
     def test_health_returns_503_when_db_unavailable(self, client):
-        from unittest.mock import patch
-
         with patch("config.api.connection") as mock_conn:
             mock_conn.ensure_connection.side_effect = Exception("DB down")
             response = client.get("/api/v1/health")
