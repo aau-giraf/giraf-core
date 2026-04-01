@@ -16,7 +16,7 @@ from core.exceptions import BusinessValidationError
 class TestPictogramServiceUpload:
     def test_upload_invalid_mime_type(self):
         file = SimpleUploadedFile("test.txt", b"not an image", content_type="text/plain")
-        with pytest.raises(BusinessValidationError, match="Only JPEG, PNG, and WebP"):
+        with pytest.raises(BusinessValidationError, match="not a valid image"):
             PictogramService.upload_pictogram(name="Bad", image=file)
 
     def test_upload_oversized_file(self):

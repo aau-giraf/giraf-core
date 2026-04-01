@@ -4,36 +4,44 @@ import mimetypes
 import uuid
 
 from django.core.files.uploadedfile import UploadedFile
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from core.exceptions import BusinessValidationError
 
-ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
+_PIL_FORMAT_TO_MIME: dict[str, str] = {
+    "JPEG": "image/jpeg",
+    "PNG": "image/png",
+    "WEBP": "image/webp",
+}
+ALLOWED_IMAGE_TYPES = list(_PIL_FORMAT_TO_MIME.values())
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
 def validate_image_upload(file: UploadedFile) -> str:
     """Validate an uploaded image file. Returns the detected MIME type.
 
-    Checks extension-based MIME type, file size, and PIL image validity.
+    Opens the file with PIL to detect the actual image format,
+    validates it against the allowed types, and checks file size.
 
     Raises:
         BusinessValidationError: If file type, size, or content is invalid.
     """
-    mime_type, _ = mimetypes.guess_type(file.name)
-    if mime_type not in ALLOWED_IMAGE_TYPES:
-        raise BusinessValidationError("Only JPEG, PNG, and WebP images are allowed.")
-
     if file.size > MAX_IMAGE_SIZE:
         raise BusinessValidationError("File size must not exceed 5MB.")
 
     try:
-        Image.open(file).verify()
+        img = Image.open(file)
+        detected_format = img.format
+        img.verify()
         file.seek(0)
-    except Exception as e:
+    except (UnidentifiedImageError, SyntaxError) as e:
         raise BusinessValidationError("File is not a valid image.") from e
 
-    return mime_type
+    actual_mime = _PIL_FORMAT_TO_MIME.get(detected_format or "")
+    if actual_mime not in ALLOWED_IMAGE_TYPES:
+        raise BusinessValidationError("Only JPEG, PNG, and WebP images are allowed.")
+
+    return actual_mime
 
 
 ALLOWED_AUDIO_TYPES = ["audio/mpeg"]
