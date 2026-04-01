@@ -47,6 +47,11 @@ class Pictogram(models.Model):
         return self.name
 
     @property
+    def has_image_source(self) -> bool:
+        """Whether this pictogram has any image (uploaded file or external URL)."""
+        return bool(self.image) or bool(self.image_url)
+
+    @property
     def effective_image_url(self) -> str:
         """Return uploaded image URL if available, otherwise the stored image_url."""
         if self.image:
@@ -61,7 +66,7 @@ class Pictogram(models.Model):
         return ""
 
     def clean(self):
-        if not self.image_url and not self.image:
+        if not self.has_image_source:
             raise ValidationError("A pictogram must have either an image_url or an uploaded image.")
         if self.citizen_id and not self.organization_id:
             raise ValidationError("A citizen-scoped pictogram must also have an organization.")

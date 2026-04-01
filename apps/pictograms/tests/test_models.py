@@ -55,6 +55,27 @@ class TestPictogramModel:
 
 
 @pytest.mark.django_db
+class TestPictogramHasImageSource:
+    def test_has_image_source_with_url(self):
+        from apps.pictograms.models import Pictogram
+
+        p = Pictogram(name="Test", image_url="https://example.com/pic.png")
+        assert p.has_image_source is True
+
+    def test_has_image_source_with_file(self):
+        from apps.pictograms.models import Pictogram
+
+        p = Pictogram(name="Test", image=make_test_image())
+        assert p.has_image_source is True
+
+    def test_has_image_source_with_neither(self):
+        from apps.pictograms.models import Pictogram
+
+        p = Pictogram(name="Test", image_url="", image=None)
+        assert p.has_image_source is False
+
+
+@pytest.mark.django_db
 class TestPictogramValidation:
     def test_pictogram_requires_image_source(self):
         from apps.pictograms.models import Pictogram
