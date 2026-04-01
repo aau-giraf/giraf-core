@@ -52,16 +52,17 @@ class PictogramService:
             raise BusinessValidationError("Citizen does not belong to the specified organization.")
 
     @staticmethod
-    def _try_generate_image(pictogram: Pictogram, prompt: str) -> None:
-        """Attempt to generate an image for a pictogram. Fails gracefully."""
+    def _try_generate_image_bytes(prompt: str) -> bytes | None:
+        """Attempt to generate image bytes from giraf-ai. Returns None on failure."""
         try:
             client = GirafAIClient()
-            image_bytes = client.generate_image(prompt)
-            pictogram.image.save(f"{pictogram.pk}.png", ContentFile(image_bytes), save=True)
+            return client.generate_image(prompt)
         except GirafAIUnavailableError as exc:
-            logger.warning("giraf-ai unavailable for pictogram %s: %s", pictogram.pk, exc, exc_info=True)
+            logger.warning("giraf-ai unavailable for image generation: %s", exc)
+            return None
         except Exception:
-            logger.exception("Unexpected error generating image for pictogram %s", pictogram.pk)
+            logger.exception("Unexpected error generating image for prompt: %s", prompt)
+            return None
 
     @staticmethod
     @transaction.atomic
@@ -77,37 +78,29 @@ class PictogramService:
         if citizen_id:
             PictogramService._validate_citizen_org(citizen_id, organization_id)
 
-        if generate_image and not image_url:
-            # Skip model validation — image will be populated by AI generation.
-            pictogram = Pictogram(
+        # If AI image generation is requested without a fallback URL,
+        # generate the image first so the model never hits the DB without one.
+        image_content: ContentFile | None = None
+        if generate_image:
+            image_bytes = PictogramService._try_generate_image_bytes(name)
+            if image_bytes:
+                image_content = ContentFile(image_bytes, name=f"{name}.png")
+
+        if not image_url and not image_content and generate_image:
+            raise BusinessValidationError(
+                "Image generation failed and no image_url was provided."
+            )
+
+        try:
+            pictogram = Pictogram.objects.create(
                 name=name,
                 image_url=image_url,
+                image=image_content,
                 organization_id=organization_id,
                 citizen_id=citizen_id,
             )
-            super(Pictogram, pictogram).save()
-
-            PictogramService._try_generate_image(pictogram, name)
-
-            # If AI generation failed, the pictogram has no image — validate now.
-            if not pictogram.image and not pictogram.image_url:
-                pictogram.delete()
-                raise BusinessValidationError(
-                    "Image generation failed and no image_url was provided."
-                )
-        else:
-            try:
-                pictogram = Pictogram.objects.create(
-                    name=name,
-                    image_url=image_url,
-                    organization_id=organization_id,
-                    citizen_id=citizen_id,
-                )
-            except DjangoValidationError as e:
-                raise BusinessValidationError(" ".join(e.messages)) from e
-
-            if generate_image:
-                PictogramService._try_generate_image(pictogram, name)
+        except DjangoValidationError as e:
+            raise BusinessValidationError(" ".join(e.messages)) from e
 
         if generate_sound:
             PictogramService._try_generate_sound(pictogram)
@@ -202,10 +195,14 @@ class PictogramService:
             validate_audio_file(sound)
             pictogram.sound = sound
 
-        pictogram.save()
-
         if generate_image:
-            PictogramService._try_generate_image(pictogram, pictogram.name)
+            image_bytes = PictogramService._try_generate_image_bytes(pictogram.name)
+            if image_bytes:
+                pictogram.image.save(
+                    f"{pictogram.pk}.png", ContentFile(image_bytes), save=False
+                )
+
+        pictogram.save()
 
         if regenerate_sound and sound is None:
             PictogramService._try_generate_sound(pictogram)

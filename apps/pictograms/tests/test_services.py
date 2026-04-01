@@ -108,6 +108,41 @@ class TestPictogramServiceCreate:
         mock_instance.generate_image.assert_called_once_with("AI Image")
         assert p.image
 
+    @patch("apps.pictograms.services.GirafAIClient")
+    def test_create_generate_image_no_url_succeeds_when_ai_returns_image(self, mock_client):
+        """generate_image=True without image_url succeeds when AI returns bytes."""
+        buf = io.BytesIO()
+        Image.new("RGB", (10, 10)).save(buf, format="PNG")
+        mock_client.return_value.generate_image.return_value = buf.getvalue()
+
+        p = PictogramService.create_pictogram(
+            name="AI Only", generate_image=True, generate_sound=False
+        )
+        assert p.pk is not None
+        assert p.image
+        assert not p.image_url
+
+    def test_create_generate_image_no_url_fails_when_ai_unavailable(self):
+        """generate_image=True without image_url raises when AI fails."""
+        with pytest.raises(BusinessValidationError, match="Image generation failed"):
+            PictogramService.create_pictogram(
+                name="No Fallback", generate_image=True, generate_sound=False
+            )
+        # Verify no orphan pictogram was left in the database
+        from apps.pictograms.models import Pictogram
+
+        assert Pictogram.objects.count() == 0
+
+    def test_create_no_image_source_raises_validation(self):
+        """create without image_url or generate_image raises model validation error."""
+        with pytest.raises(BusinessValidationError, match="image_url or an uploaded image"):
+            PictogramService.create_pictogram(
+                name="Nothing", generate_sound=False
+            )
+        from apps.pictograms.models import Pictogram
+
+        assert Pictogram.objects.count() == 0
+
 
 @pytest.mark.django_db
 class TestPictogramServiceUpdate:
