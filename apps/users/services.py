@@ -7,6 +7,7 @@ import logging
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 
 from apps.users.models import User
@@ -110,7 +111,7 @@ class UserService:
 
     @staticmethod
     @transaction.atomic
-    def upload_profile_picture(*, user_id: int, file) -> User:
+    def upload_profile_picture(*, user_id: int, file: UploadedFile) -> User:
         """Upload and validate profile picture.
 
         Raises:

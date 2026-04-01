@@ -4,6 +4,7 @@ import logging
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.db.models import Q, QuerySet
 
@@ -147,10 +148,10 @@ class PictogramService:
     def upload_pictogram(
         *,
         name: str,
-        image,
+        image: UploadedFile,
         organization_id: int | None = None,
         citizen_id: int | None = None,
-        sound=None,
+        sound: UploadedFile | None = None,
         generate_sound: bool = True,
     ) -> Pictogram:
         """Upload a pictogram with an image file and optional sound file.
@@ -187,7 +188,7 @@ class PictogramService:
         image_url: str | None = None,
         generate_image: bool = False,
         regenerate_sound: bool = False,
-        sound=None,
+        sound: UploadedFile | None = None,
     ) -> Pictogram:
         """Update a pictogram's fields. Supports name, image_url, sound upload, and AI regeneration."""
         pictogram = PictogramService._get_pictogram_or_raise(pictogram_id)
