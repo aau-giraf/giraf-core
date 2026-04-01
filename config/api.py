@@ -104,7 +104,7 @@ class HealthOut(Schema):
     db: str
 
 
-@api.get("/health", response=HealthOut, auth=None, tags=["health"])
+@api.get("/health", response={200: HealthOut, 503: HealthOut}, auth=None, tags=["health"])
 def health(request):
     """Unauthenticated health check with DB connectivity test."""
     try:
@@ -112,7 +112,10 @@ def health(request):
         db_status = "ok"
     except Exception:
         db_status = "unavailable"
-    return {"status": "ok", "db": db_status}
+
+    if db_status == "ok":
+        return 200, {"status": "ok", "db": db_status}
+    return 503, {"status": "degraded", "db": db_status}
 
 
 # Register JWT token endpoints: /api/v1/token/pair, /api/v1/token/refresh, /api/v1/token/verify

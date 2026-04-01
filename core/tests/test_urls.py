@@ -24,3 +24,18 @@ class TestURLConfiguration:
     def test_api_health_accessible(self, client):
         response = client.get("/api/v1/health")
         assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert data["db"] == "ok"
+
+    def test_health_returns_503_when_db_unavailable(self, client):
+        from unittest.mock import patch
+
+        with patch("config.api.connection") as mock_conn:
+            mock_conn.ensure_connection.side_effect = Exception("DB down")
+            response = client.get("/api/v1/health")
+
+        assert response.status_code == 503
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert data["db"] == "unavailable"
