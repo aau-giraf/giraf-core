@@ -37,8 +37,9 @@ class OrganizationService:
     @staticmethod
     def get_user_organizations(user: User) -> QuerySet[Organization]:
         """Return organizations the user is a member of."""
-        org_ids = Membership.objects.filter(user=user).values_list("organization_id", flat=True)
-        return Organization.objects.filter(id__in=org_ids)
+        return Organization.objects.filter(
+            id__in=Membership.objects.filter(user=user).values("organization_id")
+        )
 
     @staticmethod
     def get_org_members(org_id: int) -> QuerySet[Membership]:
