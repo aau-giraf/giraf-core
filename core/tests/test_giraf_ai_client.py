@@ -39,7 +39,7 @@ class TestGirafAIClient:
     def test_generate_image_returns_bytes(self, mock_token):
         image_b64 = base64.b64encode(b"fake-png-bytes").decode()
 
-        with patch.object(httpx.Client, "post") as mock_post:
+        with patch("httpx.post") as mock_post:
             mock_post.return_value = httpx.Response(
                 200,
                 json={"image_base64": image_b64},
@@ -58,7 +58,7 @@ class TestGirafAIClient:
     def test_generate_tts_returns_bytes(self, mock_token):
         audio_b64 = base64.b64encode(b"fake-mp3-bytes").decode()
 
-        with patch.object(httpx.Client, "post") as mock_post:
+        with patch("httpx.post") as mock_post:
             mock_post.return_value = httpx.Response(
                 200,
                 json={"audio_base64": audio_b64},
@@ -72,7 +72,7 @@ class TestGirafAIClient:
 
     @patch("core.clients.giraf_ai._get_service_token", return_value="fake.jwt.token")
     def test_raises_on_http_error(self, mock_token):
-        with patch.object(httpx.Client, "post") as mock_post:
+        with patch("httpx.post") as mock_post:
             mock_post.return_value = httpx.Response(
                 502,
                 json={"detail": "bad gateway"},
@@ -85,7 +85,7 @@ class TestGirafAIClient:
 
     @patch("core.clients.giraf_ai._get_service_token", return_value="fake.jwt.token")
     def test_raises_on_connection_error(self, mock_token):
-        with patch.object(httpx.Client, "post") as mock_post:
+        with patch("httpx.post") as mock_post:
             mock_post.side_effect = httpx.ConnectError("connection refused")
             client = GirafAIClient()
             client.base_url = "http://test"

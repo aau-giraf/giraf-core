@@ -32,7 +32,6 @@ class GirafAIClient:
 
     def __init__(self) -> None:
         self.base_url = getattr(settings, "GIRAF_AI_URL", "").rstrip("/")
-        self._client = httpx.Client(timeout=_TIMEOUT)
 
     def _post(self, path: str, body: dict) -> dict:
         """Make a POST request to giraf-ai and return the parsed JSON response."""
@@ -41,10 +40,11 @@ class GirafAIClient:
 
         token = _get_service_token()
         try:
-            resp = self._client.post(
+            resp = httpx.post(
                 f"{self.base_url}{path}",
                 json=body,
                 headers={"Authorization": f"Bearer {token}"},
+                timeout=_TIMEOUT,
             )
             resp.raise_for_status()
             result: dict = resp.json()
