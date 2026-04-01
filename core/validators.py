@@ -26,7 +26,7 @@ def validate_image_upload(file: UploadedFile) -> str:
     Raises:
         BusinessValidationError: If file type, size, or content is invalid.
     """
-    if file.size > MAX_IMAGE_SIZE:
+    if file.size is not None and file.size > MAX_IMAGE_SIZE:
         raise BusinessValidationError("File size must not exceed 5MB.")
 
     try:
@@ -56,11 +56,11 @@ def validate_audio_file(file: UploadedFile) -> str:
     Raises:
         BusinessValidationError: If file type, size, or content is invalid.
     """
-    mime_type, _ = mimetypes.guess_type(file.name)
+    mime_type, _ = mimetypes.guess_type(file.name or "")
     if mime_type not in ALLOWED_AUDIO_TYPES:
         raise BusinessValidationError("Only MP3 audio files are allowed.")
 
-    if file.size > MAX_AUDIO_SIZE:
+    if file.size is not None and file.size > MAX_AUDIO_SIZE:
         raise BusinessValidationError("Audio file size must not exceed 10MB.")
 
     # Verify file starts with an MP3 sync word (0xFF 0xFB/0xF3/0xF2)
@@ -74,6 +74,8 @@ def validate_audio_file(file: UploadedFile) -> str:
     if not is_id3 and not is_sync:
         raise BusinessValidationError("File is not a valid MP3 audio file.")
 
+    # mime_type is guaranteed non-None here — we checked against ALLOWED_AUDIO_TYPES above
+    assert mime_type is not None
     return mime_type
 
 
