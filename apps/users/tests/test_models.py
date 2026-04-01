@@ -35,7 +35,7 @@ class TestUserCreation:
         assert user.is_superuser is False
 
     def test_create_user_without_username_raises(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="username"):
             User.objects.create_user(
                 username="",
                 email="test@example.com",
