@@ -1,44 +1,25 @@
 """HTTP client for the giraf-ai image/TTS generation service."""
 
 import base64
-import json
 import logging
-import urllib.error
-import urllib.request
 
+import httpx
 from django.conf import settings
+from ninja_jwt.tokens import AccessToken
 
 from core.exceptions import GirafAIUnavailableError
 
 logger = logging.getLogger(__name__)
 
+_TIMEOUT = 60.0
+
 
 def _get_service_token() -> str:
-    """Create a minimal JWT for service-to-service auth using the shared secret."""
-    import hashlib
-    import hmac
-    import time
-
-    ninja_jwt = getattr(settings, "NINJA_JWT", {})
-    secret = ninja_jwt.get("SIGNING_KEY", getattr(settings, "SECRET_KEY", ""))
-
-    header = base64.urlsafe_b64encode(json.dumps(
-        {"alg": "HS256", "typ": "JWT"}
-    ).encode()).rstrip(b"=").decode()
-
-    payload = base64.urlsafe_b64encode(json.dumps({
-        "sub": "giraf-core-service",
-        "org_roles": {},
-        "iat": int(time.time()),
-        "exp": int(time.time()) + 300,
-    }).encode()).rstrip(b"=").decode()
-
-    signing_input = f"{header}.{payload}"
-    signature = base64.urlsafe_b64encode(
-        hmac.new(secret.encode(), signing_input.encode(), hashlib.sha256).digest()
-    ).rstrip(b"=").decode()
-
-    return f"{header}.{payload}.{signature}"
+    """Create a short-lived JWT for service-to-service auth."""
+    token = AccessToken()
+    token["sub"] = "giraf-core-service"
+    token["org_roles"] = {}
+    return str(token)
 
 
 class GirafAIClient:
@@ -49,38 +30,32 @@ class GirafAIClient:
     or the service is unreachable.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.base_url = getattr(settings, "GIRAF_AI_URL", "").rstrip("/")
+        self._client = httpx.Client(timeout=_TIMEOUT)
 
     def _post(self, path: str, body: dict) -> dict:
         """Make a POST request to giraf-ai and return the parsed JSON response."""
         if not self.base_url:
             raise GirafAIUnavailableError("GIRAF_AI_URL is not configured.")
 
-        url = f"{self.base_url}{path}"
-        data = json.dumps(body).encode()
         token = _get_service_token()
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {token}",
-            },
-            method="POST",
-        )
-
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                result: dict = json.loads(resp.read())
-                return result
-        except urllib.error.URLError as exc:
+            resp = self._client.post(
+                f"{self.base_url}{path}",
+                json=body,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            resp.raise_for_status()
+            result: dict = resp.json()
+            return result
+        except httpx.HTTPStatusError as exc:
+            raise GirafAIUnavailableError(
+                f"giraf-ai returned HTTP {exc.response.status_code}"
+            ) from exc
+        except httpx.RequestError as exc:
             raise GirafAIUnavailableError(
                 f"giraf-ai service is unreachable: {exc}"
-            ) from exc
-        except Exception as exc:
-            raise GirafAIUnavailableError(
-                f"giraf-ai request failed: {exc}"
             ) from exc
 
     def generate_image(self, prompt: str) -> bytes:
