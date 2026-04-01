@@ -30,10 +30,9 @@ class TestValidateImageUpload:
         f = self._make_image("WEBP", "photo.webp")
         assert validate_image_upload(f) == "image/webp"
 
-    def test_rejects_wrong_extension_with_valid_content(self):
+    def test_detects_actual_format_ignoring_extension(self):
         """A JPEG file named .png should be detected as JPEG, not PNG."""
         f = self._make_image("JPEG", "sneaky.png")
-        # Should return image/jpeg based on content, not image/png from extension
         assert validate_image_upload(f) == "image/jpeg"
 
     def test_rejects_disallowed_format(self):

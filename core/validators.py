@@ -31,12 +31,13 @@ def validate_image_upload(file: UploadedFile) -> str:
 
     try:
         img = Image.open(file)
+        detected_format = img.format
         img.verify()
         file.seek(0)
     except (UnidentifiedImageError, SyntaxError) as e:
         raise BusinessValidationError("File is not a valid image.") from e
 
-    actual_mime = _PIL_FORMAT_TO_MIME.get(img.format or "")
+    actual_mime = _PIL_FORMAT_TO_MIME.get(detected_format or "")
     if actual_mime not in ALLOWED_IMAGE_TYPES:
         raise BusinessValidationError("Only JPEG, PNG, and WebP images are allowed.")
 
