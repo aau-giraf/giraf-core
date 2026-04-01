@@ -13,8 +13,8 @@ class GradeService:
     def _get_grade_or_raise(grade_id: int) -> Grade:
         try:
             return Grade.objects.select_related("organization").get(id=grade_id)
-        except Grade.DoesNotExist:
-            raise ResourceNotFoundError(f"Grade {grade_id} not found.")
+        except Grade.DoesNotExist as e:
+            raise ResourceNotFoundError(f"Grade {grade_id} not found.") from e
 
     @staticmethod
     def _validate_citizens_belong_to_org(citizen_ids: list[int], org_id: int) -> None:

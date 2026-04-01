@@ -70,8 +70,8 @@ class Pictogram(models.Model):
 
             try:
                 citizen = Citizen.objects.get(pk=self.citizen_id)
-            except Citizen.DoesNotExist:
-                raise ValidationError("Citizen does not exist.")
+            except Citizen.DoesNotExist as e:
+                raise ValidationError("Citizen does not exist.") from e
             if citizen.organization_id != self.organization_id:
                 raise ValidationError("Citizen must belong to the pictogram's organization.")
 

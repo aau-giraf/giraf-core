@@ -12,8 +12,8 @@ class CitizenService:
     def _get_citizen_or_raise(citizen_id: int) -> Citizen:
         try:
             return Citizen.objects.select_related("organization").get(id=citizen_id)
-        except Citizen.DoesNotExist:
-            raise ResourceNotFoundError(f"Citizen {citizen_id} not found.")
+        except Citizen.DoesNotExist as e:
+            raise ResourceNotFoundError(f"Citizen {citizen_id} not found.") from e
 
     @staticmethod
     @transaction.atomic

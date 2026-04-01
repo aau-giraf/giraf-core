@@ -72,10 +72,7 @@ def service_error(request, exc):
 
 @api.exception_handler(DjangoValidationError)
 def django_validation_error(request, exc):
-    if hasattr(exc, "message_dict"):
-        detail = exc.message_dict
-    else:
-        detail = exc.messages
+    detail = exc.message_dict if hasattr(exc, "message_dict") else exc.messages
     return api.create_response(request, {"detail": detail}, status=422)
 
 

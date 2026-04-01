@@ -24,8 +24,8 @@ class InvitationService:
             qs = qs.select_for_update()
         try:
             return qs.get(id=invitation_id)
-        except Invitation.DoesNotExist:
-            raise ResourceNotFoundError(f"Invitation {invitation_id} not found.")
+        except Invitation.DoesNotExist as e:
+            raise ResourceNotFoundError(f"Invitation {invitation_id} not found.") from e
 
     @staticmethod
     def get_invitation(invitation_id: int) -> Invitation:
@@ -43,7 +43,7 @@ class InvitationService:
         try:
             receiver = User.objects.get(email=receiver_email)
         except (User.DoesNotExist, User.MultipleObjectsReturned):
-            raise InvitationSendError("Cannot send invitation.")
+            raise InvitationSendError("Cannot send invitation.") from None
 
         if Membership.objects.filter(user=receiver, organization_id=org_id).exists():
             raise InvitationSendError("Cannot send invitation.")
@@ -55,7 +55,7 @@ class InvitationService:
                 receiver=receiver,
             )
         except IntegrityError:
-            raise DuplicateInvitationError("Pending invitation already exists.")
+            raise DuplicateInvitationError("Pending invitation already exists.") from None
 
         logger.info("Invitation sent: id=%d org=%d sender=%d receiver=%d", inv.id, org_id, sender_id, receiver.id)
         return Invitation.objects.select_related("organization", "sender", "receiver").get(id=inv.id)

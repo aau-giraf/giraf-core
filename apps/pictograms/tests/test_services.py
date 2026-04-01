@@ -234,7 +234,7 @@ class TestPictogramServiceCitizenScope:
         assert p.organization_id == org.id
 
     def test_create_citizen_scoped_requires_org(self):
-        org, citizen = self._make_org_and_citizen()
+        _org, citizen = self._make_org_and_citizen()
         with pytest.raises(BusinessValidationError, match="require"):
             PictogramService.create_pictogram(
                 name="Bad",
@@ -246,7 +246,7 @@ class TestPictogramServiceCitizenScope:
     def test_create_citizen_scoped_wrong_org(self):
         from apps.organizations.models import Organization
 
-        org_a, citizen = self._make_org_and_citizen()
+        _org_a, citizen = self._make_org_and_citizen()
         org_b = Organization.objects.create(name="Other School")
         with pytest.raises(BusinessValidationError, match="does not belong"):
             PictogramService.create_pictogram(

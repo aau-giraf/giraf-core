@@ -43,13 +43,19 @@ line-length = 120
 exclude = ["**/migrations/**"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP", "S105", "S106", "S107"]
+select = ["E", "F", "I", "N", "W", "UP", "S105", "S106", "S107", "B", "A", "RUF", "SIM", "ARG"]
+ignore = [
+    "RUF012",  # Mutable ClassVar — Django Meta/ModelAdmin attrs are idiomatic without ClassVar
+]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S105", "S106", "S107"]
-"**/conftest.py" = ["S105", "S106", "S107"]
-"**/factories.py" = ["S105", "S106", "S107"]
+"**/tests/**" = ["S105", "S106", "S107", "ARG"]
+"**/conftest.py" = ["S105", "S106", "S107", "ARG"]
+"**/factories.py" = ["S105", "S106", "S107", "ARG"]
 "core/management/commands/seed_dev_data.py" = ["S105", "S106", "S107"]
+"**/api.py" = ["ARG001"]  # request param required by Django Ninja even when unused
+"core/checks.py" = ["ARG001"]  # Django system check signature requires app_configs and **kwargs
+"core/management/commands/*.py" = ["ARG002"]  # Django management command signature requires *args/**options
 
 [tool.mypy]
 plugins = ["mypy_django_plugin.main"]
