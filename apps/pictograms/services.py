@@ -35,7 +35,7 @@ class PictogramService:
         try:
             client = GirafAIClient()
             audio_bytes = client.generate_tts(pictogram.name)
-            pictogram.sound.save(f"{pictogram.pk}.mp3", ContentFile(audio_bytes), save=True)
+            pictogram.sound.save(f"{pictogram.pk}.wav", ContentFile(audio_bytes), save=True)
         except GirafAIUnavailableError:
             logger.warning("giraf-ai unavailable — skipping TTS for pictogram %s", pictogram.pk)
         except Exception:

@@ -72,6 +72,6 @@ class GirafAIClient:
         result = self._post("/api/v1/tts", {
             "text": text,
             "language": "da",
-            "format": "mp3",
+            "format": "wav",
         })
         return base64.b64decode(result["audio_base64"])
