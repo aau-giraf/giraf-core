@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+from django.db import DatabaseError
 from django.test import Client
 
 
@@ -32,7 +33,7 @@ class TestURLConfiguration:
 
     def test_health_returns_503_when_db_unavailable(self, client):
         with patch("config.api.connection") as mock_conn:
-            mock_conn.ensure_connection.side_effect = Exception("DB down")
+            mock_conn.ensure_connection.side_effect = DatabaseError("DB down")
             response = client.get("/api/v1/health")
 
         assert response.status_code == 503

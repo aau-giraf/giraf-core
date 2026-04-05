@@ -66,9 +66,10 @@ class TestValidateAudioFile:
         f = SimpleUploadedFile("audio.mp3", content, content_type="audio/mpeg")
         assert validate_audio_file(f) == "audio/mpeg"
 
-    def test_rejects_wrong_extension(self):
+    def test_rejects_non_mp3_content(self):
+        """A WAV file (RIFF header) is rejected by content inspection, not extension."""
         f = SimpleUploadedFile("audio.wav", b"RIFF" + b"\x00" * 100)
-        with pytest.raises(BusinessValidationError, match="MP3"):
+        with pytest.raises(BusinessValidationError, match="not a valid MP3"):
             validate_audio_file(f)
 
     def test_rejects_invalid_content(self):

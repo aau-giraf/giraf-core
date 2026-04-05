@@ -5,6 +5,7 @@ from datetime import timedelta
 from config.settings.base import *  # noqa: F403
 
 DEBUG = False
+SECRET_KEY = "django-insecure-test-key-min-32-bytes-long!"  # noqa: S105
 
 DATABASES = {
     "default": {
@@ -23,4 +24,5 @@ NINJA_JWT = {
     **NINJA_JWT,  # type: ignore[name-defined]  # noqa: F405
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(minutes=30),
+    "SIGNING_KEY": SECRET_KEY,
 }

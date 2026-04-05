@@ -18,7 +18,7 @@ User = get_user_model()
 
 class InvitationService:
     @staticmethod
-    def _get_invitation_or_raise(invitation_id: int, *, for_update: bool = False) -> Invitation:
+    def get_invitation(invitation_id: int, *, for_update: bool = False) -> Invitation:
         qs = Invitation.objects.select_related("organization", "sender", "receiver")
         if for_update:
             qs = qs.select_for_update()
@@ -26,10 +26,6 @@ class InvitationService:
             return qs.get(id=invitation_id)
         except Invitation.DoesNotExist as e:
             raise ResourceNotFoundError(f"Invitation {invitation_id} not found.") from e
-
-    @staticmethod
-    def get_invitation(invitation_id: int) -> Invitation:
-        return InvitationService._get_invitation_or_raise(invitation_id)
 
     @staticmethod
     @transaction.atomic
@@ -43,6 +39,7 @@ class InvitationService:
         try:
             receiver = User.objects.get(email=receiver_email)
         except (User.DoesNotExist, User.MultipleObjectsReturned):
+            # Suppress cause to prevent user enumeration
             raise InvitationSendError("Cannot send invitation.") from None
 
         if Membership.objects.filter(user=receiver, organization_id=org_id).exists():
@@ -58,7 +55,7 @@ class InvitationService:
             raise DuplicateInvitationError("Pending invitation already exists.") from None
 
         logger.info("Invitation sent: id=%d org=%d sender=%d receiver=%d", inv.id, org_id, sender_id, receiver.id)
-        return Invitation.objects.select_related("organization", "sender", "receiver").get(id=inv.id)
+        return InvitationService.get_invitation(inv.id)
 
     @staticmethod
     def list_received(user) -> QuerySet[Invitation]:
@@ -77,7 +74,7 @@ class InvitationService:
     @transaction.atomic
     def accept(*, invitation_id: int) -> Invitation:
         """Accept invitation: create membership, update status."""
-        invitation = InvitationService._get_invitation_or_raise(invitation_id, for_update=True)
+        invitation = InvitationService.get_invitation(invitation_id, for_update=True)
         if invitation.status != InvitationStatus.PENDING:
             raise BadRequestError("Invitation is no longer pending.")
         OrganizationService.add_member(
@@ -97,7 +94,7 @@ class InvitationService:
     @staticmethod
     @transaction.atomic
     def reject(*, invitation_id: int) -> Invitation:
-        invitation = InvitationService._get_invitation_or_raise(invitation_id, for_update=True)
+        invitation = InvitationService.get_invitation(invitation_id, for_update=True)
         if invitation.status != InvitationStatus.PENDING:
             raise BadRequestError("Invitation is no longer pending.")
         invitation.status = InvitationStatus.REJECTED
@@ -108,7 +105,7 @@ class InvitationService:
     @staticmethod
     def delete(*, invitation_id: int, org_id: int) -> None:
         """Delete an invitation, verifying it belongs to the given organization."""
-        invitation = InvitationService._get_invitation_or_raise(invitation_id)
+        invitation = InvitationService.get_invitation(invitation_id)
         if invitation.organization_id != org_id:
             raise ResourceNotFoundError(f"Invitation {invitation_id} not found.")
         invitation.delete()
