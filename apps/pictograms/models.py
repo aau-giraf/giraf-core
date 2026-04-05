@@ -12,6 +12,8 @@ class Pictogram(models.Model):
     """A visual aid image used across GIRAF apps."""
 
     name = models.CharField(max_length=255)
+    # Image priority: uploaded `image` takes precedence over `image_url`.
+    # See `effective_image_url` property for resolution logic.
     image_url = models.CharField(max_length=500, blank=True, default="")
     image = models.ImageField(
         upload_to="pictograms/%Y/%m/%d/",
@@ -70,15 +72,6 @@ class Pictogram(models.Model):
             raise ValidationError("A pictogram must have either an image_url or an uploaded image.")
         if self.citizen_id and not self.organization_id:
             raise ValidationError("A citizen-scoped pictogram must also have an organization.")
-        if self.citizen_id and self.organization_id:
-            from apps.citizens.models import Citizen
-
-            try:
-                citizen = Citizen.objects.get(pk=self.citizen_id)
-            except Citizen.DoesNotExist as e:
-                raise ValidationError("Citizen does not exist.") from e
-            if citizen.organization_id != self.organization_id:
-                raise ValidationError("Citizen must belong to the pictogram's organization.")
 
     def save(self, *args, **kwargs):
         self.full_clean()

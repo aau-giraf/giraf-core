@@ -23,23 +23,17 @@ class OrganizationService:
         return org
 
     @staticmethod
-    def _get_org_or_raise(org_id: int) -> Organization:
+    def get_organization(org_id: int) -> Organization:
+        """Get an organization by ID."""
         try:
             return Organization.objects.get(id=org_id)
         except Organization.DoesNotExist as e:
             raise ResourceNotFoundError("Organization not found.") from e
 
     @staticmethod
-    def get_organization(org_id: int) -> Organization:
-        """Get an organization by ID."""
-        return OrganizationService._get_org_or_raise(org_id)
-
-    @staticmethod
     def get_user_organizations(user: User) -> QuerySet[Organization]:
         """Return organizations the user is a member of."""
-        return Organization.objects.filter(
-            id__in=Membership.objects.filter(user=user).values("organization_id")
-        )
+        return Organization.objects.filter(memberships__user=user)
 
     @staticmethod
     def get_org_members(org_id: int) -> QuerySet[Membership]:
@@ -47,21 +41,20 @@ class OrganizationService:
         return Membership.objects.filter(organization_id=org_id).select_related("user")
 
     @staticmethod
-    @transaction.atomic
     def update_organization(*, org_id: int, name: str) -> Organization:
         """Update an organization's name."""
-        org = OrganizationService._get_org_or_raise(org_id)
+        org = OrganizationService.get_organization(org_id)
         org.name = name
         org.save(update_fields=["name"])
         return org
 
     @staticmethod
-    @transaction.atomic
     def delete_organization(*, org_id: int) -> None:
         """Delete an organization."""
-        org = OrganizationService._get_org_or_raise(org_id)
-        logger.info("Organization deleted: id=%d name=%s", org.id, org.name)
-        org.delete()
+        deleted, _ = Organization.objects.filter(id=org_id).delete()
+        if not deleted:
+            raise ResourceNotFoundError("Organization not found.")
+        logger.info("Organization deleted: id=%d", org_id)
 
     @staticmethod
     def add_member(*, user_id: int, org_id: int, role: str = OrgRole.MEMBER) -> Membership:

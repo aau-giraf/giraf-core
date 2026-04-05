@@ -1,8 +1,10 @@
 """GIRAF Core — Ninja API root configuration."""
 
+import logging
+
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import connection
+from django.db import DatabaseError, connection
 from ninja import Schema
 from ninja_extra import NinjaExtraAPI, api_controller
 from ninja_extra.permissions import AllowAny
@@ -65,8 +67,12 @@ def validation_error(request, exc):
     return api.create_response(request, {"detail": str(exc)}, status=422)
 
 
+logger = logging.getLogger(__name__)
+
+
 @api.exception_handler(ServiceError)
 def service_error(request, exc):
+    logger.exception("Unhandled ServiceError")
     return api.create_response(request, {"detail": "An unexpected service error occurred."}, status=500)
 
 
@@ -110,7 +116,7 @@ def health(request):
     try:
         connection.ensure_connection()
         db_status = "ok"
-    except Exception:
+    except DatabaseError:
         db_status = "unavailable"
 
     if db_status == "ok":

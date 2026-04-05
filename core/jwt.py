@@ -26,9 +26,10 @@ class TokenObtainPairInputSchema(TokenObtainInputSchemaBase):
         refresh = RefreshToken.for_user(user)
 
         # Build org_roles: {org_id: role} from memberships
-        org_roles = {}
-        for membership in user.memberships.select_related("organization").all():
-            org_roles[str(membership.organization_id)] = membership.role
+        org_roles = {
+            str(org_id): role
+            for org_id, role in user.memberships.values_list("organization_id", "role")
+        }
 
         # Embed in JWT payload (before generating access token)
         refresh["org_roles"] = org_roles

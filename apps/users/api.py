@@ -7,7 +7,7 @@ from ninja.files import UploadedFile
 from apps.users.schemas import PasswordChangeIn, RegisterIn, UserOut, UserUpdateIn
 from apps.users.services import UserService
 from core.schemas import ErrorOut
-from core.throttling import RegisterRateThrottle
+from core.throttling import PasswordChangeRateThrottle, RegisterRateThrottle
 
 router = Router(tags=["users"])
 
@@ -47,7 +47,7 @@ def update_profile(request, payload: UserUpdateIn):
     return 200, updated
 
 
-@router.put("/users/me/password", response={200: UserOut, 422: ErrorOut})
+@router.put("/users/me/password", response={200: UserOut, 422: ErrorOut}, throttle=[PasswordChangeRateThrottle()])
 def change_password(request, payload: PasswordChangeIn):
     """Change user's password."""
     updated = UserService.change_password(

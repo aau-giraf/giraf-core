@@ -8,7 +8,6 @@ import logging
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
-from django.db import transaction
 
 from apps.users.models import User
 from core.exceptions import BusinessValidationError, ConflictError, ResourceNotFoundError
@@ -19,14 +18,13 @@ logger = logging.getLogger(__name__)
 
 class UserService:
     @staticmethod
-    def _get_user_or_raise(user_id: int) -> User:
+    def get_user(user_id: int) -> User:
         try:
             return User.objects.get(id=user_id)
         except User.DoesNotExist as e:
             raise ResourceNotFoundError(f"User {user_id} not found.") from e
 
     @staticmethod
-    @transaction.atomic
     def register(
         *, username: str, password: str, email: str | None = None, first_name: str = "", last_name: str = ""
     ) -> User:
@@ -43,7 +41,8 @@ class UserService:
         try:
             validate_password(password)
         except DjangoValidationError as e:
-            raise BusinessValidationError(e.messages) from e
+            logger.info("Password validation failed for registration: %s", e.messages)
+            raise BusinessValidationError("Password does not meet requirements.") from e
 
         user = User.objects.create_user(
             username=username,
@@ -56,12 +55,11 @@ class UserService:
         return user
 
     @staticmethod
-    @transaction.atomic
     def update_user(
         *, user_id: int, first_name: str | None = None, last_name: str | None = None, email: str | None = None
     ) -> User:
         """Update user profile fields. Only updates non-None values."""
-        user = UserService._get_user_or_raise(user_id)
+        user = UserService.get_user(user_id)
         updated_fields: list[str] = []
         if first_name is not None:
             user.first_name = first_name
@@ -79,14 +77,13 @@ class UserService:
         return user
 
     @staticmethod
-    @transaction.atomic
     def change_password(*, user_id: int, old_password: str, new_password: str) -> User:
         """Change user password with validation.
 
         Raises:
             BusinessValidationError: If old password is incorrect or new password is weak.
         """
-        user = UserService._get_user_or_raise(user_id)
+        user = UserService.get_user(user_id)
         if not user.check_password(old_password):
             raise BusinessValidationError("Old password is incorrect.")
 
@@ -94,30 +91,29 @@ class UserService:
         try:
             validate_password(new_password)
         except DjangoValidationError as e:
-            raise BusinessValidationError(e.messages) from e
+            logger.info("Password validation failed for change: %s", e.messages)
+            raise BusinessValidationError("Password does not meet requirements.") from e
 
         user.set_password(new_password)
         user.save()
         return user
 
     @staticmethod
-    @transaction.atomic
     def delete_user(*, user_id: int) -> None:
         """Deactivate user account (soft delete)."""
-        user = UserService._get_user_or_raise(user_id)
+        user = UserService.get_user(user_id)
         user.is_active = False
         user.save(update_fields=["is_active"])
         logger.info("User deactivated: id=%d username=%s", user.id, user.username)
 
     @staticmethod
-    @transaction.atomic
     def upload_profile_picture(*, user_id: int, file: UploadedFile) -> User:
         """Upload and validate profile picture.
 
         Raises:
             BusinessValidationError: If file type or size is invalid.
         """
-        user = UserService._get_user_or_raise(user_id)
+        user = UserService.get_user(user_id)
         mime_type = validate_image_upload(file)
 
         # Delete old profile picture if exists
