@@ -51,10 +51,9 @@ class OrganizationService:
     @staticmethod
     def delete_organization(*, org_id: int) -> None:
         """Delete an organization."""
-        deleted_count, _ = Organization.objects.filter(id=org_id).delete()
-        if deleted_count == 0:
-            raise ResourceNotFoundError("Organization not found.")
-        logger.info("Organization deleted: id=%d", org_id)
+        org = OrganizationService.get_organization(org_id)
+        logger.info("Organization deleted: id=%d name=%s", org.id, org.name)
+        org.delete()
 
     @staticmethod
     def add_member(*, user_id: int, org_id: int, role: str = OrgRole.MEMBER) -> Membership:

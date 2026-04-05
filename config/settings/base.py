@@ -103,6 +103,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # JWT (django-ninja-jwt)
 # ---------------------------------------------------------------------------
 
+# NOTE: SIGNING_KEY is evaluated at import time, when SECRET_KEY may still be
+# empty (base.py default). Each environment file (dev, test, prod) MUST
+# re-set NINJA_JWT["SIGNING_KEY"] after overriding SECRET_KEY.
 NINJA_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),

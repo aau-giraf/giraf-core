@@ -32,7 +32,7 @@ class PictogramService:
             pictogram.sound.save(f"{pictogram.pk}.mp3", ContentFile(audio_bytes), save=True)
         except GirafAIUnavailableError:
             logger.warning("giraf-ai unavailable — skipping TTS for pictogram %s", pictogram.pk)
-        except (httpx.HTTPError, httpx.RequestError, ValueError, KeyError):
+        except (httpx.HTTPError, ValueError, KeyError):
             logger.exception("Unexpected error generating TTS for pictogram %s", pictogram.pk)
 
     @staticmethod
@@ -55,7 +55,7 @@ class PictogramService:
         except GirafAIUnavailableError as exc:
             logger.warning("giraf-ai unavailable for image generation: %s", exc)
             return None
-        except (httpx.HTTPError, httpx.RequestError, ValueError, KeyError):
+        except (httpx.HTTPError, ValueError, KeyError):
             logger.exception("Unexpected error generating image for prompt: %s", prompt)
             return None
 

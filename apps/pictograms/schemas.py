@@ -9,7 +9,13 @@ from pydantic import Field, field_validator
 
 
 def _validate_image_url(v: str) -> str:
-    """Allow empty string or valid http(s) URLs with non-private hosts only."""
+    """Allow empty string or valid http(s) URLs with non-private hosts only.
+
+    NOTE: DNS is resolved at validation time. A malicious DNS server could return
+    a public IP during validation, then switch to a private IP before the actual
+    fetch (DNS rebinding). For full protection, the fetch path should also
+    validate resolved IPs. Acceptable risk for this deployment.
+    """
     if not v:
         return v
     parsed = urlparse(v)
@@ -17,9 +23,11 @@ def _validate_image_url(v: str) -> str:
         raise ValueError("Only http and https URLs are allowed.")
     if parsed.hostname:
         try:
-            ip = ipaddress.ip_address(socket.gethostbyname(parsed.hostname))
-            if ip.is_private or ip.is_loopback or ip.is_link_local:
-                raise ValueError("URLs pointing to internal/private addresses are not allowed.")
+            # getaddrinfo resolves both A (IPv4) and AAAA (IPv6) records
+            for _family, _type, _proto, _canonname, sockaddr in socket.getaddrinfo(parsed.hostname, None):
+                ip = ipaddress.ip_address(sockaddr[0])
+                if ip.is_private or ip.is_loopback or ip.is_link_local:
+                    raise ValueError("URLs pointing to internal/private addresses are not allowed.")
         except socket.gaierror:
             pass  # Unresolvable host will fail at fetch time
     return v
