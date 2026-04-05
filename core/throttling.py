@@ -21,6 +21,15 @@ class RegisterRateThrottle(AnonRateThrottle):
         super().__init__(rate="3/min")
 
 
+class PasswordChangeRateThrottle(AuthRateThrottle):
+    """Limit password change attempts to 5/min per authenticated user."""
+
+    scope = "password_change"
+
+    def __init__(self) -> None:
+        super().__init__(rate="5/min")
+
+
 class InvitationSendRateThrottle(AuthRateThrottle):
     """Limit invitation sends to 10/min per authenticated user."""
 

@@ -3,6 +3,7 @@
 import logging
 import uuid
 
+import httpx
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
@@ -23,13 +24,6 @@ logger = logging.getLogger(__name__)
 
 class PictogramService:
     @staticmethod
-    def _get_pictogram_or_raise(pictogram_id: int) -> Pictogram:
-        try:
-            return Pictogram.objects.get(id=pictogram_id)
-        except Pictogram.DoesNotExist as e:
-            raise ResourceNotFoundError(f"Pictogram {pictogram_id} not found.") from e
-
-    @staticmethod
     def _try_generate_sound(pictogram: Pictogram) -> None:
         """Attempt to generate TTS sound for a pictogram. Fails gracefully."""
         try:
@@ -38,7 +32,7 @@ class PictogramService:
             pictogram.sound.save(f"{pictogram.pk}.wav", ContentFile(audio_bytes), save=True)
         except GirafAIUnavailableError:
             logger.warning("giraf-ai unavailable — skipping TTS for pictogram %s", pictogram.pk)
-        except Exception:
+        except (httpx.HTTPError, ValueError, KeyError):
             logger.exception("Unexpected error generating TTS for pictogram %s", pictogram.pk)
 
     @staticmethod
@@ -61,7 +55,7 @@ class PictogramService:
         except GirafAIUnavailableError as exc:
             logger.warning("giraf-ai unavailable for image generation: %s", exc)
             return None
-        except Exception:
+        except (httpx.HTTPError, ValueError, KeyError):
             logger.exception("Unexpected error generating image for prompt: %s", prompt)
             return None
 
@@ -135,7 +129,10 @@ class PictogramService:
 
     @staticmethod
     def get_pictogram(pictogram_id: int) -> Pictogram:
-        return PictogramService._get_pictogram_or_raise(pictogram_id)
+        try:
+            return Pictogram.objects.get(id=pictogram_id)
+        except Pictogram.DoesNotExist as e:
+            raise ResourceNotFoundError(f"Pictogram {pictogram_id} not found.") from e
 
     @staticmethod
     @transaction.atomic
@@ -185,7 +182,7 @@ class PictogramService:
         sound: UploadedFile | None = None,
     ) -> Pictogram:
         """Update a pictogram's fields. Supports name, image_url, sound upload, and AI regeneration."""
-        pictogram = PictogramService._get_pictogram_or_raise(pictogram_id)
+        pictogram = PictogramService.get_pictogram(pictogram_id)
 
         if name is not None:
             pictogram.name = name
@@ -213,5 +210,6 @@ class PictogramService:
     @staticmethod
     @transaction.atomic
     def delete_pictogram(*, pictogram_id: int) -> None:
-        pictogram = PictogramService._get_pictogram_or_raise(pictogram_id)
-        pictogram.delete()
+        deleted_count, _ = Pictogram.objects.filter(id=pictogram_id).delete()
+        if deleted_count == 0:
+            raise ResourceNotFoundError(f"Pictogram {pictogram_id} not found.")

@@ -128,20 +128,21 @@ class TestPictogramCitizenScope:
                 citizen=citizen,
             )
 
-    def test_citizen_must_belong_to_pictogram_org(self):
+    def test_citizen_org_mismatch_allowed_at_model_level(self):
+        """Cross-org validation is enforced by PictogramService, not the model."""
         from apps.citizens.models import Citizen
         from apps.pictograms.models import Pictogram
 
         org_a = Organization.objects.create(name="School A")
         org_b = Organization.objects.create(name="School B")
         citizen = Citizen.objects.create(first_name="Alice", last_name="Test", organization=org_a)
-        with pytest.raises(ValidationError, match="organization"):
-            Pictogram.objects.create(
-                name="Wrong Org",
-                image_url="https://example.com/pic.png",
-                organization=org_b,
-                citizen=citizen,
-            )
+        p = Pictogram.objects.create(
+            name="Wrong Org",
+            image_url="https://example.com/pic.png",
+            organization=org_b,
+            citizen=citizen,
+        )
+        assert p.pk is not None
 
     def test_existing_global_and_org_pictograms_unaffected(self):
         from apps.pictograms.models import Pictogram

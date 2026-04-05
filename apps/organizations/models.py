@@ -36,16 +36,6 @@ class Organization(models.Model):
     def __str__(self) -> str:
         return self.name
 
-    def clean(self):
-        from django.core.exceptions import ValidationError
-
-        if not self.name or not self.name.strip():
-            raise ValidationError({"name": "Organization name is required."})
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
-
 
 class Membership(models.Model):
     """Links a user to an organization with a specific role."""
@@ -81,6 +71,7 @@ class Membership(models.Model):
     def _role_level(self) -> int:
         return ROLE_HIERARCHY.get(self.role, 0)
 
+    # "has at least X role" semantics — is_member is always True for any membership.
     @property
     def is_member(self) -> bool:
         return self._role_level >= ROLE_HIERARCHY[OrgRole.MEMBER]

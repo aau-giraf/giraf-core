@@ -8,7 +8,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-dev-only-DO-NOT-USE-IN-PRODUCTION")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
 
 DEBUG = False
 
@@ -103,6 +103,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # JWT (django-ninja-jwt)
 # ---------------------------------------------------------------------------
 
+# NOTE: SIGNING_KEY is evaluated at import time, when SECRET_KEY may still be
+# empty (base.py default). Each environment file (dev, test, prod) MUST
+# re-set NINJA_JWT["SIGNING_KEY"] after overriding SECRET_KEY.
 NINJA_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -191,6 +194,15 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     }
 }
+
+# ---------------------------------------------------------------------------
+# Cookie security
+# ---------------------------------------------------------------------------
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
 
 # ---------------------------------------------------------------------------
 # Default primary key field type
