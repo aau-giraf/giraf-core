@@ -57,10 +57,47 @@ def validate_image_upload(file: UploadedFile) -> str:
 MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
 
 
+def _detect_audio_mime(header: bytes) -> str | None:
+    """Detect audio MIME type from the first 12 bytes of a file."""
+    if len(header) < 4:
+        return None
+
+    # MP3 with ID3 tag
+    if header[:3] == b"ID3":
+        return "audio/mpeg"
+
+    # MP3 MPEG sync word (0xFF followed by 0xE0+ in second byte)
+    if header[0] == 0xFF and (header[1] & 0xE0) == 0xE0:
+        return "audio/mpeg"
+
+    # WAV: RIFF....WAVE
+    if header[:4] == b"RIFF" and len(header) >= 12 and header[8:12] == b"WAVE":
+        return "audio/wav"
+
+    # OGG
+    if header[:4] == b"OggS":
+        return "audio/ogg"
+
+    # FLAC
+    if header[:4] == b"fLaC":
+        return "audio/flac"
+
+    # AIFF: FORM....AIFF
+    if header[:4] == b"FORM" and len(header) >= 12 and header[8:12] == b"AIFF":
+        return "audio/aiff"
+
+    # M4A / AAC in MP4 container: ftyp at offset 4
+    if len(header) >= 8 and header[4:8] == b"ftyp":
+        return "audio/mp4"
+
+    return None
+
+
 def validate_audio_file(file: UploadedFile) -> str:
     """Validate an uploaded audio file. Returns the detected MIME type.
 
-    Checks file size and MP3 frame header.
+    Reads the file header and checks for known audio format signatures
+    (MP3, WAV, OGG, FLAC, AIFF, M4A/AAC).
 
     Raises:
         BusinessValidationError: If file type, size, or content is invalid.
@@ -68,18 +105,14 @@ def validate_audio_file(file: UploadedFile) -> str:
     if file.size is not None and file.size > MAX_AUDIO_SIZE:
         raise BusinessValidationError("Audio file size must not exceed 10MB.")
 
-    # Verify file starts with an MP3 sync word (0xFF 0xFB/0xF3/0xF2)
-    # or an ID3 tag header ("ID3").
-    header = file.read(3)
+    header = file.read(12)
     file.seek(0)
-    if len(header) < 3:
-        raise BusinessValidationError("File is not a valid MP3 audio file.")
-    is_id3 = header[:3] == b"ID3"
-    is_sync = header[0] == 0xFF and (header[1] & 0xE0) == 0xE0
-    if not is_id3 and not is_sync:
-        raise BusinessValidationError("File is not a valid MP3 audio file.")
 
-    return "audio/mpeg"
+    mime = _detect_audio_mime(header)
+    if mime is None:
+        raise BusinessValidationError("File is not a recognized audio format.")
+
+    return mime
 
 
 def sanitized_image_filename(mime_type: str) -> str:

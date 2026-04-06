@@ -66,15 +66,39 @@ class TestValidateAudioFile:
         f = SimpleUploadedFile("audio.mp3", content, content_type="audio/mpeg")
         assert validate_audio_file(f) == "audio/mpeg"
 
-    def test_rejects_non_mp3_content(self):
-        """A WAV file (RIFF header) is rejected by content inspection, not extension."""
-        f = SimpleUploadedFile("audio.wav", b"RIFF" + b"\x00" * 100)
-        with pytest.raises(BusinessValidationError, match="not a valid MP3"):
-            validate_audio_file(f)
+    def test_valid_wav(self):
+        content = b"RIFF" + b"\x00" * 4 + b"WAVE" + b"\x00" * 100
+        f = SimpleUploadedFile("audio.wav", content, content_type="audio/wav")
+        assert validate_audio_file(f) == "audio/wav"
+
+    def test_valid_ogg(self):
+        content = b"OggS" + b"\x00" * 100
+        f = SimpleUploadedFile("audio.ogg", content, content_type="audio/ogg")
+        assert validate_audio_file(f) == "audio/ogg"
+
+    def test_valid_flac(self):
+        content = b"fLaC" + b"\x00" * 100
+        f = SimpleUploadedFile("audio.flac", content, content_type="audio/flac")
+        assert validate_audio_file(f) == "audio/flac"
+
+    def test_valid_aiff(self):
+        content = b"FORM" + b"\x00" * 4 + b"AIFF" + b"\x00" * 100
+        f = SimpleUploadedFile("audio.aiff", content, content_type="audio/aiff")
+        assert validate_audio_file(f) == "audio/aiff"
+
+    def test_valid_m4a(self):
+        content = b"\x00" * 4 + b"ftyp" + b"\x00" * 100
+        f = SimpleUploadedFile("audio.m4a", content, content_type="audio/mp4")
+        assert validate_audio_file(f) == "audio/mp4"
 
     def test_rejects_invalid_content(self):
         f = SimpleUploadedFile("audio.mp3", b"not audio data at all")
-        with pytest.raises(BusinessValidationError, match="not a valid MP3"):
+        with pytest.raises(BusinessValidationError, match="not a recognized audio"):
+            validate_audio_file(f)
+
+    def test_rejects_too_short(self):
+        f = SimpleUploadedFile("audio.mp3", b"ab")
+        with pytest.raises(BusinessValidationError, match="not a recognized audio"):
             validate_audio_file(f)
 
     def test_rejects_oversized_file(self):
