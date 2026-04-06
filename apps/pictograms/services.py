@@ -26,16 +26,19 @@ logger = logging.getLogger(__name__)
 
 class PictogramService:
     @staticmethod
-    def _try_generate_sound(pictogram: Pictogram) -> None:
-        """Attempt to generate TTS sound for a pictogram. Fails gracefully."""
+    def _generate_sound_for_pk(pk: int, name: str) -> None:
+        """Fetch a pictogram by PK and generate TTS sound. Fails gracefully."""
         try:
             client = GirafAIClient()
-            audio_bytes = client.generate_tts(pictogram.name)
-            pictogram.sound.save(f"{pictogram.pk}.wav", ContentFile(audio_bytes), save=True)
+            audio_bytes = client.generate_tts(name)
+            pictogram = Pictogram.objects.get(pk=pk)
+            pictogram.sound.save(f"{pk}.wav", ContentFile(audio_bytes), save=True)
+        except Pictogram.DoesNotExist:
+            logger.warning("Pictogram %s deleted before TTS completed", pk)
         except GirafAIUnavailableError:
-            logger.warning("giraf-ai unavailable — skipping TTS for pictogram %s", pictogram.pk)
+            logger.warning("giraf-ai unavailable — skipping TTS for pictogram %s", pk)
         except (httpx.HTTPError, ValueError, KeyError):
-            logger.exception("Unexpected error generating TTS for pictogram %s", pictogram.pk)
+            logger.exception("Unexpected error generating TTS for pictogram %s", pk)
 
     @staticmethod
     def _schedule_sound_generation(pictogram: Pictogram) -> None:
@@ -48,31 +51,18 @@ class PictogramService:
         If the thread fails or the server restarts, the pictogram simply has no
         sound — caregivers can regenerate via the update endpoint.
         """
-        if getattr(django_settings, "TTS_SYNC", False):
-            PictogramService._try_generate_sound(pictogram)
-            return
-
         pk, name = pictogram.pk, pictogram.name
 
-        def _background() -> None:
-            try:
-                client = GirafAIClient()
-                audio_bytes = client.generate_tts(name)
-                p = Pictogram.objects.get(pk=pk)
-                p.sound.save(f"{pk}.wav", ContentFile(audio_bytes), save=True)
-            except Pictogram.DoesNotExist:
-                logger.warning("Pictogram %s deleted before TTS completed", pk)
-            except GirafAIUnavailableError:
-                logger.warning(
-                    "giraf-ai unavailable — skipping TTS for pictogram %s", pk
-                )
-            except (httpx.HTTPError, ValueError, KeyError):
-                logger.exception(
-                    "Unexpected error generating TTS for pictogram %s", pk
-                )
+        if getattr(django_settings, "TTS_SYNC", False):
+            PictogramService._generate_sound_for_pk(pk, name)
+            return
 
         transaction.on_commit(
-            lambda: threading.Thread(target=_background, daemon=True).start()
+            lambda: threading.Thread(
+                target=PictogramService._generate_sound_for_pk,
+                args=(pk, name),
+                daemon=True,
+            ).start()
         )
 
     @staticmethod
