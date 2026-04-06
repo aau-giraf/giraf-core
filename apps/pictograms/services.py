@@ -17,7 +17,7 @@ from core.exceptions import (
     GirafAIUnavailableError,
     ResourceNotFoundError,
 )
-from core.validators import validate_audio_file, validate_image_upload
+from core.validators import resize_image, validate_audio_file, validate_image_upload
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,8 @@ class PictogramService:
         if citizen_id:
             PictogramService._validate_citizen_org(citizen_id, organization_id)
 
-        validate_image_upload(image)
+        mime_type = validate_image_upload(image)
+        image = resize_image(image, max_dimension=512, mime_type=mime_type)
         if sound is not None:
             validate_audio_file(sound)
 
