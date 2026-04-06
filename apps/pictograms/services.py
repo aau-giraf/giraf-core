@@ -9,7 +9,7 @@ from django.conf import settings as django_settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Q, QuerySet
 
 from apps.pictograms.models import Pictogram
@@ -27,7 +27,12 @@ logger = logging.getLogger(__name__)
 class PictogramService:
     @staticmethod
     def _generate_sound_for_pk(pk: int, name: str) -> None:
-        """Fetch a pictogram by PK and generate TTS sound. Fails gracefully."""
+        """Fetch a pictogram by PK and generate TTS sound. Fails gracefully.
+
+        When called from a background thread, the ``finally`` block closes the
+        DB connection so it is returned to the pool (Django tracks connections
+        per-thread and does not clean up daemon threads automatically).
+        """
         try:
             client = GirafAIClient()
             audio_bytes = client.generate_tts(name)
@@ -39,6 +44,8 @@ class PictogramService:
             logger.warning("giraf-ai unavailable — skipping TTS for pictogram %s", pk)
         except (httpx.HTTPError, ValueError, KeyError):
             logger.exception("Unexpected error generating TTS for pictogram %s", pk)
+        finally:
+            connection.close()
 
     @staticmethod
     def _schedule_sound_generation(pictogram: Pictogram) -> None:
