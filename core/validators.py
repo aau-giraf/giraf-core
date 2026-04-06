@@ -61,7 +61,7 @@ def resize_image(file: UploadedFile, max_dimension: int, mime_type: str) -> Simp
     if pil_format is None:
         raise BusinessValidationError(f"Unsupported image format for resize: {mime_type}")
 
-    img = Image.open(file)
+    img: Image.Image = Image.open(file)
     img = ImageOps.exif_transpose(img) or img
     img.thumbnail((max_dimension, max_dimension))
     buf = io.BytesIO()
