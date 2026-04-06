@@ -66,7 +66,8 @@ def _detect_audio_mime(header: bytes) -> str | None:
     if header[:3] == b"ID3":
         return "audio/mpeg"
 
-    # MP3 MPEG sync word (0xFF followed by 0xE0+ in second byte)
+    # MP3 MPEG sync word (0xFF followed by 0xE0+ in second byte).
+    # Safe against JPEG (0xFF 0xD8): 0xD8 & 0xE0 == 0xC0, not 0xE0.
     if header[0] == 0xFF and (header[1] & 0xE0) == 0xE0:
         return "audio/mpeg"
 
@@ -86,9 +87,12 @@ def _detect_audio_mime(header: bytes) -> str | None:
     if header[:4] == b"FORM" and len(header) >= 12 and header[8:12] == b"AIFF":
         return "audio/aiff"
 
-    # M4A / AAC in MP4 container: ftyp at offset 4
-    if len(header) >= 8 and header[4:8] == b"ftyp":
-        return "audio/mp4"
+    # M4A / AAC in MP4 container: ftyp box at offset 4, then check the
+    # brand field at offset 8 to avoid matching video MP4/MOV files.
+    if len(header) >= 12 and header[4:8] == b"ftyp":
+        brand = header[8:12]
+        if brand in (b"M4A ", b"M4B ", b"isom", b"mp42"):
+            return "audio/mp4"
 
     return None
 

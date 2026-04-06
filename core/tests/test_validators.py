@@ -87,9 +87,16 @@ class TestValidateAudioFile:
         assert validate_audio_file(f) == "audio/aiff"
 
     def test_valid_m4a(self):
-        content = b"\x00" * 4 + b"ftyp" + b"\x00" * 100
+        content = b"\x00" * 4 + b"ftypM4A " + b"\x00" * 100
         f = SimpleUploadedFile("audio.m4a", content, content_type="audio/mp4")
         assert validate_audio_file(f) == "audio/mp4"
+
+    def test_rejects_video_mp4(self):
+        """An MP4 video (ftyp with video brand) should not pass the audio validator."""
+        content = b"\x00" * 4 + b"ftypavc1" + b"\x00" * 100
+        f = SimpleUploadedFile("video.mp4", content, content_type="video/mp4")
+        with pytest.raises(BusinessValidationError, match="not a recognized audio"):
+            validate_audio_file(f)
 
     def test_rejects_invalid_content(self):
         f = SimpleUploadedFile("audio.mp3", b"not audio data at all")
