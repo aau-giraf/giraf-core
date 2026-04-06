@@ -48,13 +48,13 @@ class TestPictogramServiceUpload:
     def test_upload_rejects_invalid_audio(self):
         image = make_test_image()
         bad_sound = SimpleUploadedFile("test.txt", b"not audio", content_type="text/plain")
-        with pytest.raises(BusinessValidationError, match="not a valid MP3"):
+        with pytest.raises(BusinessValidationError, match="not a recognized audio"):
             PictogramService.upload_pictogram(name="BadSound", image=image, sound=bad_sound)
 
     def test_upload_rejects_spoofed_mp3(self):
         image = make_test_image()
         spoofed = SimpleUploadedFile("sneaky.mp3", b"not actually mp3 data", content_type="audio/mpeg")
-        with pytest.raises(BusinessValidationError, match="not a valid MP3"):
+        with pytest.raises(BusinessValidationError, match="not a recognized audio"):
             PictogramService.upload_pictogram(name="Spoofed", image=image, sound=spoofed)
 
     def test_upload_rejects_oversized_audio(self):
