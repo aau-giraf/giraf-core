@@ -1,9 +1,10 @@
 """Reusable validation utilities."""
 
+import io
 import mimetypes
 import uuid
 
-from django.core.files.uploadedfile import UploadedFile
+from django.core.files.uploadedfile import SimpleUploadedFile, UploadedFile
 from PIL import Image, UnidentifiedImageError
 
 from core.exceptions import BusinessValidationError
@@ -13,9 +14,9 @@ _PIL_FORMAT_TO_MIME: dict[str, str] = {
     "PNG": "image/png",
     "WEBP": "image/webp",
 }
+_MIME_TO_PIL_FORMAT: dict[str, str] = {v: k for k, v in _PIL_FORMAT_TO_MIME.items()}
 ALLOWED_IMAGE_TYPES = list(_PIL_FORMAT_TO_MIME.values())
-MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
-MAX_IMAGE_DIMENSION = 4096
+MAX_IMAGE_SIZE = 20 * 1024 * 1024  # 20MB — phone photos can be large
 
 
 def validate_image_upload(file: UploadedFile) -> str:
@@ -28,7 +29,7 @@ def validate_image_upload(file: UploadedFile) -> str:
         BusinessValidationError: If file type, size, or content is invalid.
     """
     if file.size is not None and file.size > MAX_IMAGE_SIZE:
-        raise BusinessValidationError("File size must not exceed 5MB.")
+        raise BusinessValidationError("File size must not exceed 20MB.")
 
     try:
         img = Image.open(file)
@@ -42,16 +43,23 @@ def validate_image_upload(file: UploadedFile) -> str:
     if actual_mime not in ALLOWED_IMAGE_TYPES:
         raise BusinessValidationError("Only JPEG, PNG, and WebP images are allowed.")
 
-    # Re-open to check dimensions (verify() invalidates the image object)
-    img = Image.open(file)
-    width, height = img.size
-    file.seek(0)
-    if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
-        raise BusinessValidationError(
-            f"Image dimensions must not exceed {MAX_IMAGE_DIMENSION}x{MAX_IMAGE_DIMENSION} pixels."
-        )
-
     return actual_mime
+
+
+def resize_image(file: UploadedFile, max_dimension: int, mime_type: str) -> SimpleUploadedFile:
+    """Resize an image so its longest side is at most *max_dimension* pixels.
+
+    Returns a new ``SimpleUploadedFile`` with the resized image data.
+    If the image is already within bounds it is re-saved without upscaling.
+    """
+    img = Image.open(file)
+    img.thumbnail((max_dimension, max_dimension))
+    buf = io.BytesIO()
+    pil_format = _MIME_TO_PIL_FORMAT[mime_type]
+    img.save(buf, format=pil_format)
+    buf.seek(0)
+    ext = mimetypes.guess_extension(mime_type) or ".bin"
+    return SimpleUploadedFile(f"{uuid.uuid4().hex}{ext}", buf.read(), content_type=mime_type)
 
 
 MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB

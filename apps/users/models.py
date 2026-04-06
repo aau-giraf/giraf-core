@@ -19,7 +19,7 @@ class User(AbstractUser):
         upload_to="profile_pictures/%Y/%m/%d/",
         null=True,
         blank=True,
-        help_text="User profile picture (max 5MB, JPEG/PNG/WebP)",
+        help_text="User profile picture (max 20MB, JPEG/PNG/WebP)",
     )
 
     class Meta:

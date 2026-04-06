@@ -52,7 +52,7 @@ class TestUserService:
         buf = io.BytesIO()
         Image.new("RGB", (10, 10)).save(buf, format="PNG")
         buf.seek(0)
-        file = SimpleUploadedFile("big.png", buf.read() + b"\x00" * (6 * 1024 * 1024), content_type="image/png")
+        file = SimpleUploadedFile("big.png", buf.read() + b"\x00" * (21 * 1024 * 1024), content_type="image/png")
         with pytest.raises(BusinessValidationError):
             UserService.upload_profile_picture(user_id=registered_user.id, file=file)
 

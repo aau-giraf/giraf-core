@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
 from core.exceptions import BusinessValidationError
-from core.validators import validate_audio_file, validate_image_upload
+from core.validators import resize_image, validate_audio_file, validate_image_upload
 
 
 class TestValidateImageUpload:
@@ -50,9 +50,37 @@ class TestValidateImageUpload:
 
     def test_rejects_oversized_file(self):
         f = self._make_image()
-        f.size = 6 * 1024 * 1024  # fake 6MB
-        with pytest.raises(BusinessValidationError, match="5MB"):
+        f.size = 21 * 1024 * 1024  # fake 21MB
+        with pytest.raises(BusinessValidationError, match="20MB"):
             validate_image_upload(f)
+
+
+class TestResizeImage:
+    @staticmethod
+    def _make_image(width: int, height: int, fmt: str = "PNG") -> SimpleUploadedFile:
+        buf = io.BytesIO()
+        Image.new("RGB", (width, height), color="red").save(buf, format=fmt)
+        buf.seek(0)
+        return SimpleUploadedFile("photo.png", buf.read(), content_type=f"image/{fmt.lower()}")
+
+    def test_downsizes_large_image(self):
+        f = self._make_image(2000, 1000)
+        result = resize_image(f, max_dimension=512, mime_type="image/png")
+        img = Image.open(result)
+        assert img.size == (512, 256)
+
+    def test_preserves_small_image(self):
+        f = self._make_image(100, 50)
+        result = resize_image(f, max_dimension=512, mime_type="image/png")
+        img = Image.open(result)
+        assert img.size == (100, 50)
+
+    def test_preserves_format(self):
+        f = self._make_image(800, 600, fmt="JPEG")
+        result = resize_image(f, max_dimension=256, mime_type="image/jpeg")
+        img = Image.open(result)
+        assert img.format == "JPEG"
+        assert img.size == (256, 192)
 
 
 class TestValidateAudioFile:
