@@ -218,3 +218,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ---------------------------------------------------------------------------
 
 GIRAF_AI_URL = os.environ.get("GIRAF_AI_URL", "")
+
+# When True, TTS generation runs synchronously instead of in a background
+# thread.  Enabled in tests to keep them deterministic.
+TTS_SYNC = False

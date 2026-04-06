@@ -26,3 +26,6 @@ NINJA_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(minutes=30),
     "SIGNING_KEY": SECRET_KEY,
 }
+
+# Run TTS synchronously so tests are deterministic (no background threads).
+TTS_SYNC = True
