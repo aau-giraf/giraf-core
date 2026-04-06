@@ -5,7 +5,7 @@ import mimetypes
 import uuid
 
 from django.core.files.uploadedfile import SimpleUploadedFile, UploadedFile
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from core.exceptions import BusinessValidationError
 
@@ -49,13 +49,22 @@ def validate_image_upload(file: UploadedFile) -> str:
 def resize_image(file: UploadedFile, max_dimension: int, mime_type: str) -> SimpleUploadedFile:
     """Resize an image so its longest side is at most *max_dimension* pixels.
 
-    Returns a new ``SimpleUploadedFile`` with the resized image data.
-    If the image is already within bounds it is re-saved without upscaling.
+    Applies EXIF orientation (phone photos embed rotation in metadata)
+    before resizing.  Returns a new ``SimpleUploadedFile`` with the
+    resized image data.  If the image is already within bounds it is
+    re-encoded at its original dimensions.
+
+    Precondition: *mime_type* must be one of ``ALLOWED_IMAGE_TYPES``
+    (call ``validate_image_upload`` first).
     """
+    pil_format = _MIME_TO_PIL_FORMAT.get(mime_type)
+    if pil_format is None:
+        raise BusinessValidationError(f"Unsupported image format for resize: {mime_type}")
+
     img = Image.open(file)
+    img = ImageOps.exif_transpose(img) or img
     img.thumbnail((max_dimension, max_dimension))
     buf = io.BytesIO()
-    pil_format = _MIME_TO_PIL_FORMAT[mime_type]
     img.save(buf, format=pil_format)
     buf.seek(0)
     ext = mimetypes.guess_extension(mime_type) or ".bin"

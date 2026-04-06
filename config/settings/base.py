@@ -139,6 +139,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Allow uploads up to 25MB (pictogram images can be large phone photos).
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
+
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
