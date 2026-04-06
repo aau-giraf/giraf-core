@@ -1,9 +1,11 @@
 """Business logic for pictogram operations."""
 
 import logging
+import threading
 import uuid
 
 import httpx
+from django.conf import settings as django_settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
@@ -34,6 +36,44 @@ class PictogramService:
             logger.warning("giraf-ai unavailable — skipping TTS for pictogram %s", pictogram.pk)
         except (httpx.HTTPError, ValueError, KeyError):
             logger.exception("Unexpected error generating TTS for pictogram %s", pictogram.pk)
+
+    @staticmethod
+    def _schedule_sound_generation(pictogram: Pictogram) -> None:
+        """Schedule TTS sound generation for a pictogram.
+
+        In production, defers to a background thread via transaction.on_commit
+        so the API response is not blocked.  In tests (TTS_SYNC=True), runs
+        synchronously to keep assertions deterministic.
+
+        If the thread fails or the server restarts, the pictogram simply has no
+        sound — caregivers can regenerate via the update endpoint.
+        """
+        if getattr(django_settings, "TTS_SYNC", False):
+            PictogramService._try_generate_sound(pictogram)
+            return
+
+        pk, name = pictogram.pk, pictogram.name
+
+        def _background() -> None:
+            try:
+                client = GirafAIClient()
+                audio_bytes = client.generate_tts(name)
+                p = Pictogram.objects.get(pk=pk)
+                p.sound.save(f"{pk}.wav", ContentFile(audio_bytes), save=True)
+            except Pictogram.DoesNotExist:
+                logger.warning("Pictogram %s deleted before TTS completed", pk)
+            except GirafAIUnavailableError:
+                logger.warning(
+                    "giraf-ai unavailable — skipping TTS for pictogram %s", pk
+                )
+            except (httpx.HTTPError, ValueError, KeyError):
+                logger.exception(
+                    "Unexpected error generating TTS for pictogram %s", pk
+                )
+
+        transaction.on_commit(
+            lambda: threading.Thread(target=_background, daemon=True).start()
+        )
 
     @staticmethod
     def _validate_citizen_org(citizen_id: int, organization_id: int | None) -> None:
@@ -98,7 +138,7 @@ class PictogramService:
             raise BusinessValidationError(" ".join(e.messages)) from e
 
         if generate_sound:
-            PictogramService._try_generate_sound(pictogram)
+            PictogramService._schedule_sound_generation(pictogram)
 
         return pictogram
 
@@ -167,7 +207,7 @@ class PictogramService:
         )
 
         if sound is None and generate_sound:
-            PictogramService._try_generate_sound(pictogram)
+            PictogramService._schedule_sound_generation(pictogram)
 
         return pictogram
 
@@ -204,7 +244,7 @@ class PictogramService:
         pictogram.save()
 
         if regenerate_sound and sound is None:
-            PictogramService._try_generate_sound(pictogram)
+            PictogramService._schedule_sound_generation(pictogram)
 
         return pictogram
 

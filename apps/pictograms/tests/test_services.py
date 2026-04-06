@@ -93,6 +93,7 @@ class TestPictogramServiceCreate:
         )
         assert p.pk is not None
         mock_instance.generate_tts.assert_called_once_with("AI Sound")
+        p.refresh_from_db()
         assert p.sound
 
     @patch("apps.pictograms.services.GirafAIClient")
