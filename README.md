@@ -10,7 +10,9 @@
 
 # GIRAF Core API
 
-Shared domain service for the GIRAF platform — manages users, organizations, citizens, grades, pictograms, invitations, and JWT authentication.
+Nicolai-developed prototype of a shared domain service for the GIRAF platform — manages users, organizations, citizens, grades, pictograms, invitations, and JWT authentication or in short - all the stuff that isnt app-specific. So you go to a school, you have a teacher etc. Those things are independent of foodplanner, weekplanner and VTA. 
+
+- below is the vision, currently its implemented only for weekplanner which serves as the demonstrator of how to nicely (?!) integrate a shared domain service. 
 
 ## How Other Apps Use Core
 
